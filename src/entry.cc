@@ -11,8 +11,22 @@ GetApplicationState_FunctionSignature(GetApplicationState)
 
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 {
+    windowController->CreateContext();
+
+    while (!applicationContext->IsClosing())
+    {
+    }
 }
 
 LogicThreadEntry_FunctionSignature(LogicThreadEntry)
 {
+    Framework::ReadingKeyboardState *keyboardState = windowController->GetKeyStateReader();
+
+    while (!applicationContext->IsClosing())
+    {
+        if (keyboardState->GetKeyState(System::KeyCode::KeyQ) == Framework::KeyState::Pressed)
+        {
+            applicationContext->Close();
+        }
+    }
 }
