@@ -62,6 +62,18 @@ GLuint CreateShaderFromSource(GLenum shaderType, const char *sourceFilename)
     return handle;
 }
 
+float positionData[] = {
+    -0.8f, -0.8f,  0.0f,
+     0.8f, -0.8f,  0.0f,
+     0.0f,  0.8f,  0.0f    
+};
+
+float colorData[] = {
+    1.0f, 0.0f, 0.0f,
+    0.0f, 1.0f, 0.0f,
+    0.0f, 0.0f, 1.0f
+};
+
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 {
     windowController->CreateContext();
@@ -69,8 +81,43 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     // Load 3d assets
     GLuint vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/basic.vert");
     GLuint fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/basic.frag");
+
+    GLuint shaderProgramHandle = glCreateProgram();
+
+    glAttachShader(shaderProgramHandle, vertexShaderHandle);
+    glAttachShader(shaderProgramHandle, fragmentShaderHandle);
+
+    glBindAttribLocation(shaderProgramHandle, 0, "VertexPosition");
+    glBindAttribLocation(shaderProgramHandle, 1, "VertexColor");
     
+    glLinkProgram(shaderProgramHandle);
+
+    glUseProgram(shaderProgramHandle);
+
+    GLuint vboHandles[2];
+    glGenBuffers(2, vboHandles);
+    GLuint positionBufferHandle = vboHandles[0];
+    GLuint colorBufferHandle = vboHandles[1];
+
+    GLuint vaoHandle;
+    glGenVertexArrays(1, &vaoHandle);
+    glBindVertexArray(vaoHandle);
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, positionBufferHandle);
+    glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), positionData, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, colorBufferHandle);
+    glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), colorData, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+
     while (!applicationContext->IsClosing())
     {
+        glBindVertexArray(vaoHandle);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        windowController->SwapBuffers();
     }
 }
