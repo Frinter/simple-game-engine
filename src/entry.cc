@@ -9,15 +9,6 @@ GetApplicationState_FunctionSignature(GetApplicationState)
     return &applicationState;
 }
 
-GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
-{
-    windowController->CreateContext();
-
-    while (!applicationContext->IsClosing())
-    {
-    }
-}
-
 LogicThreadEntry_FunctionSignature(LogicThreadEntry)
 {
     Framework::ReadingKeyboardState *keyboardState = windowController->GetKeyStateReader();
