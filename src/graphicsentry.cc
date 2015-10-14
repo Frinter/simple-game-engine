@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "framework/platform.hh"
 #include "GL/gl_core_3_3.h"
@@ -62,23 +63,32 @@ GLuint CreateShaderFromSource(GLenum shaderType, const char *sourceFilename)
     return handle;
 }
 
-float positionData[] = {
+float _positionData[] = {
     -0.8f, -0.8f,  0.0f,
      0.8f, -0.8f,  0.0f,
      0.0f,  0.8f,  0.0f    
 };
 
-float colorData[] = {
+float _colorData[] = {
     1.0f, 0.0f, 0.0f,
     0.0f, 1.0f, 0.0f,
     0.0f, 0.0f, 1.0f
 };
 
+GLubyte _indexData[] = { 0, 1, 2 };
+
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 {
     windowController->CreateContext();
-
+    
     // Load 3d assets
+    std::vector<float> positionData, colorData;
+    positionData.assign(_positionData, _positionData+9);
+    colorData.assign(_colorData, _colorData+9);
+
+    std::vector<GLubyte> indexData;
+    indexData.assign(_indexData, _indexData+3);
+    
     GLuint vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/basic.vert");
     GLuint fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
@@ -94,30 +104,33 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 
     glUseProgram(shaderProgramHandle);
 
-    GLuint vboHandles[2];
-    glGenBuffers(2, vboHandles);
+    GLuint vboHandles[3];
+    glGenBuffers(3, vboHandles);
     GLuint positionBufferHandle = vboHandles[0];
     GLuint colorBufferHandle = vboHandles[1];
+    GLuint indexBufferHandle = vboHandles[2];
 
     GLuint vaoHandle;
     glGenVertexArrays(1, &vaoHandle);
     glBindVertexArray(vaoHandle);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferHandle);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexData.size(), indexData.data(), GL_STATIC_DRAW);
     
     glBindBuffer(GL_ARRAY_BUFFER, positionBufferHandle);
-    glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), positionData, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, positionData.size() * sizeof(float), positionData.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
     
     glBindBuffer(GL_ARRAY_BUFFER, colorBufferHandle);
-    glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(float), colorData, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, colorData.size() * sizeof(float), colorData.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
 
     while (!applicationContext->IsClosing())
     {
         glBindVertexArray(vaoHandle);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-
+        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, NULL);
         windowController->SwapBuffers();
     }
 }
