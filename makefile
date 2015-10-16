@@ -2,6 +2,8 @@ SUB_DIRS := $(shell find src -type d -print)
 OBJ_DIRS := $(foreach dir,$(SUB_DIRS),$(patsubst src%,build%,$(dir)))
 SRC := $(foreach dir,$(SUB_DIRS),$(wildcard $(dir)/*.cc))
 
+.PRECIOUS: build/%.d
+
 bin/bandit-camp.exe: $(patsubst src/%.cc,build/%.o,$(SRC))
 	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm
 
