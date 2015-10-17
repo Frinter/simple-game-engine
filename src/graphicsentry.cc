@@ -8,8 +8,10 @@
 
 #include "framework/platform.hh"
 #include "GL/gl_core_3_3.h"
-
-typedef unsigned char IndexType;
+#include "model.hh"
+#include "sleepservice.hh"
+#include "systemtimer.hh"
+#include "ticker.hh"
 
 float _rotationMatrix[] = {
     1.0f, 0.0f, 0.0f, 0.0f,
@@ -32,23 +34,6 @@ float _colorData[] = {
 
 GLubyte _indexData[] = { 0, 1, 2 };
 
-class Model
-{
-public:
-    Model(std::vector<float> positions, std::vector<float> colors, std::vector<IndexType> indices)
-        : _positions(positions), _colors(colors), _indices(indices)
-    {}
-    
-    std::vector<float> GetVertexPositions() const { return _positions; }
-    std::vector<float> GetVertexColors() const { return _colors; }
-    std::vector<IndexType> GetVertexIndices() const { return _indices; }
-    
-private:
-    std::vector<float> _positions;
-    std::vector<float> _colors;
-    std::vector<IndexType> _indices;
-};
-
 class IRenderer
 {
 public:
@@ -59,7 +44,8 @@ public:
 class BasicRenderer : public IRenderer
 {
 public:
-    BasicRenderer() {
+    BasicRenderer()
+    {
         _vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/basic.vert");
         _fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/basic.frag");
 
@@ -95,11 +81,13 @@ public:
         _rotationMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "RotationMatrix");
     }
 
-    void Use() {
+    void Use()
+    {
         glUseProgram(_shaderProgramHandle);
     }
     
-    void Render(const Model &model) {
+    void Render(const Model &model)
+    {
         glBindVertexArray(_vaoHandle);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferHandle);
@@ -128,7 +116,8 @@ private:
     GLuint _rotationMatrixLocation;
 
 private:
-    GLuint CreateShaderFromSource(GLenum shaderType, const char *sourceFilename) {
+    GLuint CreateShaderFromSource(GLenum shaderType, const char *sourceFilename)
+    {
         char *source = ReadFile(sourceFilename);
     
         GLuint handle;
@@ -161,7 +150,8 @@ private:
     }
 
 
-    char *ReadFile(const char *filename) {
+    char *ReadFile(const char *filename)
+    {
         std::FILE *file = std::fopen(filename, "rb");
 
         if (file == NULL)
@@ -185,22 +175,29 @@ private:
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 {
     windowController->CreateContext();
-    
+
+    SystemTimer systemTimer(applicationContext->GetSystemUtility());
+    SleepService sleepService(applicationContext->GetSystemUtility());
+    Ticker ticker = Ticker(&systemTimer, &sleepService);
+
     // Load 3d assets
     std::vector<float> positionData, colorData;
     positionData.assign(_positionData, _positionData+9);
     colorData.assign(_colorData, _colorData+9);
 
-    std::vector<IndexType> indexData;
+    std::vector<IndexValue> indexData;
     indexData.assign(_indexData, _indexData+3);
 
     Model model(positionData, colorData, indexData);
 
     IRenderer *renderer = new BasicRenderer();
+
+    ticker.Start(17);
     
     while (!applicationContext->IsClosing())
     {
         renderer->Render(model);
         windowController->SwapBuffers();
+        ticker.WaitUntilNextTick();
     }
 }
