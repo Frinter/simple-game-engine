@@ -11,7 +11,7 @@ $(OBJ_DIRS):
 	@mkdir -p $@
 
 build/%.d: src/%.cc | $(OBJ_DIRS)
-	@clang++ -MM -MT build/$*.o -Iinclude -MF $@ $<
+	@clang++ -std=c++11 -MM -MT build/$*.o -Iinclude -MF $@ $<
 
 build/%.o: src/%.cc build/%.d | $(OBJ_DIRS)
 	clang++ -c -o $@ -std=c++11 -Iinclude $<
