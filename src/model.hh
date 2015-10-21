@@ -1,10 +1,13 @@
 #pragma once
 
+#include <vector>
+
 typedef unsigned char IndexValue;
 
 class Model
 {
 public:
+    Model(const char *filename);
     Model(std::vector<float> positions, std::vector<float> colors, std::vector<IndexValue> indices)
         : _positions(positions), _colors(colors), _indices(indices)
     {}
@@ -17,4 +20,7 @@ private:
     std::vector<float> _positions;
     std::vector<float> _colors;
     std::vector<IndexValue> _indices;
+
+private:
+    void LoadFromFile(const char *filename);
 };
