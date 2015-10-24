@@ -1,12 +1,17 @@
+#include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "objparser.hh"
 
 using std::ifstream;
 using std::string;
+using std::unordered_map;
+using std::vector;
 
 /*
  * Grammar:
@@ -23,6 +28,7 @@ using std::string;
  * <file> -> {<line>}
  */
 
+// Terminals
 enum class Token
 {
     FLOAT_LITERAL,
@@ -38,6 +44,16 @@ enum class Token
     INDEX_SEPARATOR,
     SCANEOF
 };
+
+typedef struct Vertex
+{
+    float coordinates[4];
+} Vertex;
+
+typedef struct Face
+{
+    std::vector<IndexValue> vertexIndices;
+} Face;
 
 std::string GetStringForToken(Token token)
 {
@@ -97,6 +113,11 @@ public:
     int GetLine() const
     {
         return _line;
+    }
+
+    string GetTokenBuffer() const
+    {
+        return _tokenBuffer;
     }
     
     void MatchToken(Token token)
@@ -289,9 +310,14 @@ public:
     
     void Parse();
 
+    vector<float> GetVertices();
+    vector<IndexValue> GetIndices();
+    
 private:
     const char *_fileName;
     ObjTokenScanner *_scanner;
+    vector<Vertex> _vertices;
+    vector<Face> _faces;
 
     void MatchValue();
     void MatchFaceIndex();
@@ -303,9 +329,56 @@ ObjFileParser::ObjFileParser(const char *filename)
 {
 }
 
+ObjFileParser::~ObjFileParser()
+{
+    delete _implementation;
+}
+
 void ObjFileParser::Parse()
 {
     _implementation->Parse();
+}
+
+vector<float> ObjFileParser::GetVertices()
+{
+    return _implementation->GetVertices();
+}
+
+vector<IndexValue> ObjFileParser::GetIndices()
+{
+    return _implementation->GetIndices();
+}
+
+vector<float> ObjFileParserImplementation::GetVertices()
+{
+    vector<float> processedVertices;
+
+    for (int i = 0; i < _vertices.size(); ++i)
+    {
+        Vertex vertex = _vertices[i];
+        for (int j = 0; j < 4; ++j)
+        {
+            processedVertices.push_back(vertex.coordinates[j]);
+        }
+    }
+
+    return processedVertices;
+}
+
+vector<IndexValue> ObjFileParserImplementation::GetIndices()
+{
+    vector<IndexValue> processedIndices;
+
+    for (int i = 0; i < _faces.size(); ++i)
+    {
+        Face face = _faces[i];
+        for (int j = 0; j < 3; ++j)
+        {
+            processedIndices.push_back(face.vertexIndices[j]);
+        }
+    }
+
+    return processedIndices;
 }
 
 void ObjFileParserImplementation::Parse()
@@ -332,9 +405,13 @@ void ObjFileParserImplementation::Parse()
 void ObjFileParserImplementation::MatchValue()
 {
     if (_scanner->GetCurrentToken() == Token::FLOAT_LITERAL)
+    {
         _scanner->MatchToken(Token::FLOAT_LITERAL);
+    }
     else if (_scanner->GetCurrentToken() == Token::INT_LITERAL)
+    {
         _scanner->MatchToken(Token::INT_LITERAL);
+    }
     else
     {
         std::stringstream errorStream;
@@ -342,7 +419,7 @@ void ObjFileParserImplementation::MatchValue()
         throw std::runtime_error(errorStream.str());
     }
 }
-    
+
 void ObjFileParserImplementation::MatchFaceIndex()
 {
     _scanner->MatchToken(Token::INT_LITERAL);
@@ -367,7 +444,21 @@ void ObjFileParserImplementation::MatchLine()
 {
     if (_scanner->GetCurrentToken() == Token::GEOMETRIC_VERTEX_INDICATOR)
     {
+        Vertex vertex;
         _scanner->MatchToken(Token::GEOMETRIC_VERTEX_INDICATOR);
+        vertex.coordinates[0] = atof(_scanner->GetTokenBuffer().c_str());
+        MatchValue();
+        vertex.coordinates[1] = atof(_scanner->GetTokenBuffer().c_str());
+        MatchValue();
+        vertex.coordinates[2] = atof(_scanner->GetTokenBuffer().c_str());
+        MatchValue();
+        vertex.coordinates[3] = 1.0;
+
+        _vertices.push_back(vertex);
+    }
+    else if (_scanner->GetCurrentToken() == Token::VERTEX_NORMAL_INDICATOR)
+    {
+        _scanner->MatchToken(Token::VERTEX_NORMAL_INDICATOR);
         MatchValue();
         MatchValue();
         MatchValue();
@@ -390,11 +481,16 @@ void ObjFileParserImplementation::MatchLine()
     }
     else if (_scanner->GetCurrentToken() == Token::POLYGON_FACE_INDICATOR)
     {
+        Face face;
         _scanner->MatchToken(Token::POLYGON_FACE_INDICATOR);
+        
         while (_scanner->GetCurrentToken() != Token::NEWLINE)
         {
+            face.vertexIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()));
             MatchFaceIndex();
         }
+
+        _faces.push_back(face);
     }
     else if (_scanner->GetCurrentToken() == Token::MATERIAL_NAME)
     {

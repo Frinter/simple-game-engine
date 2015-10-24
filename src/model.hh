@@ -2,7 +2,7 @@
 
 #include <vector>
 
-typedef unsigned char IndexValue;
+#include "types.hh"
 
 class Model
 {

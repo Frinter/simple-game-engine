@@ -10,4 +10,7 @@ void Model::LoadFromFile(const char *filename)
 {
     ObjFileParser parser(filename);
     parser.Parse();
+
+    _positions = parser.GetVertices();
+    _indices = parser.GetIndices();
 }
