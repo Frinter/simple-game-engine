@@ -31,6 +31,7 @@ using std::vector;
 // Terminals
 enum class Token
 {
+    START,
     FLOAT_LITERAL,
     INT_LITERAL,
     GEOMETRIC_VERTEX_INDICATOR,
@@ -59,6 +60,8 @@ std::string GetStringForToken(Token token)
 {
     switch (token)
     {
+    case Token::START:
+        return "START";
     case Token::FLOAT_LITERAL:
         return "FLOAT_LITERAL";
     case Token::INT_LITERAL:
@@ -90,7 +93,7 @@ class ObjTokenScanner
 {
 public:
     ObjTokenScanner(const char *fileName)
-        : _fileName(fileName)
+        : _fileName(fileName), _currentToken(Token::START), _line(1)
     {
         _fileStream.open(fileName);
     }
@@ -146,6 +149,7 @@ public:
         if (_fileStream.eof())
         {
             _currentToken = Token::SCANEOF;
+            return;
         }
 
         char input = _fileStream.get();
@@ -174,94 +178,100 @@ public:
             ++_line;
             return;
         }
-
-        if (input == '/')
-        {
-            _currentToken = Token::INDEX_SEPARATOR;
-            return;
-        }
-
-        if (input == 'u' && nextInput == 's')
-        {
-            _fileStream.unget();
-            if (checkForString("usemtl"))
-            {
-                _currentToken = Token::MATERIAL_NAME;
-                return;
-            }
-            _fileStream.get();
-        }
         
-        if (input == '-' || input == '.' || isdigit(input)) // float or int
+        bool isLineStart = _currentToken == Token::NEWLINE || _currentToken == Token::START;
+        if (isLineStart)
         {
-            _currentToken = Token::INT_LITERAL;
-            while (input == '-' || input == '.' || isdigit(input))
+            if (input == 'g' && nextInput == ' ')
             {
-                _tokenBuffer.push_back(input);
-                if (input == '.')
-                    _currentToken = Token::FLOAT_LITERAL;
-                input = _fileStream.get();
+                _currentToken = Token::GROUP_INDICATOR;
+                return;
             }
 
-            _fileStream.unget();
-            return;
-        }
+            if (input == 'f' && nextInput == ' ')
+            {
+                _currentToken = Token::POLYGON_FACE_INDICATOR;
+                return;
+            }
 
-        if (input == 'g' && nextInput == ' ')
-        {
-            _currentToken = Token::GROUP_INDICATOR;
-            return;
-        }
-
-        if (input == 'f' && nextInput == ' ')
-        {
-            _currentToken = Token::POLYGON_FACE_INDICATOR;
-            return;
-        }
-
-        if (input == 'v' && nextInput == ' ')
-        {
-            _currentToken = Token::GEOMETRIC_VERTEX_INDICATOR;
-            return;
-        }
+            if (input == 'v' && nextInput == ' ')
+            {
+                _currentToken = Token::GEOMETRIC_VERTEX_INDICATOR;
+                return;
+            }
         
-        if (input == 'v' && nextInput == 't')
-        {
-            _fileStream.get();
-            
-            if (_fileStream.peek() == ' ')
+            if (input == 'v' && nextInput == 't')
             {
-                _currentToken = Token::VERTEX_TEXTURE_INDICATOR;
+                _fileStream.get();
+            
+                if (_fileStream.peek() == ' ')
+                {
+                    _currentToken = Token::VERTEX_TEXTURE_INDICATOR;
+                    return;
+                }
+            
+                _fileStream.unget();
+            }
+
+            if (input == 'v' && nextInput == 'n')
+            {
+                _fileStream.get();
+            
+                if (_fileStream.peek() == ' ')
+                {
+                    _currentToken = Token::VERTEX_NORMAL_INDICATOR;
+                    return;
+                }
+            
+                _fileStream.unget();
+            }
+            
+            if (input == 'u' && nextInput == 's')
+            {
+                _fileStream.unget();
+                if (checkForString("usemtl"))
+                {
+                    _currentToken = Token::MATERIAL_NAME;
+                    return;
+                }
+                _fileStream.get();
+            }
+        }
+        else // !isLineStart
+        {
+            if (input == '/')
+            {
+                _currentToken = Token::INDEX_SEPARATOR;
                 return;
             }
-            
-            _fileStream.unget();
-        }
 
-        if (input == 'v' && nextInput == 'n')
-        {
-            _fileStream.get();
-            
-            if (_fileStream.peek() == ' ')
+            if (input == '-' || input == '.' || isdigit(input)) // float or int
             {
-                _currentToken = Token::VERTEX_NORMAL_INDICATOR;
+                _currentToken = Token::INT_LITERAL;
+                while (input == '-' || input == '.' || isdigit(input))
+                {
+                    _tokenBuffer.push_back(input);
+                    if (input == '.')
+                        _currentToken = Token::FLOAT_LITERAL;
+                    input = _fileStream.get();
+                }
+
+                _fileStream.unget();
                 return;
             }
-            
-            _fileStream.unget();
-        }
 
-        if (isalnum(input))
-        {
-            _currentToken = Token::IDENTIFIER;
-            while (isalnum(input))
+            if (isalnum(input))
             {
-                _tokenBuffer.push_back(input);
-                input = _fileStream.get();
-            }
+                _currentToken = Token::IDENTIFIER;
+                while (isalnum(input))
+                {
+                    _tokenBuffer.push_back(input);
+                    input = _fileStream.get();
+                }
 
-            _fileStream.unget();
-            return;
+                _fileStream.unget();
+                return;
+            }
         }
         
         std::stringstream errorStream;
@@ -486,7 +496,7 @@ void ObjFileParserImplementation::MatchLine()
         
         while (_scanner->GetCurrentToken() != Token::NEWLINE)
         {
-            face.vertexIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()));
+            face.vertexIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()) - 1);
             MatchFaceIndex();
         }
 
