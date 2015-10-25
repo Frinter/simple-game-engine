@@ -32,7 +32,7 @@ float _colorData[] = {
     0.0f, 0.0f, 1.0f
 };
 
-GLubyte _indexData[] = { 0, 1, 2 };
+IndexValue _indexData[] = { 0, 1, 2 };
 
 class IRenderer
 {
@@ -73,7 +73,7 @@ public:
         glEnableVertexAttribArray(1);
 
         glBindBuffer(GL_ARRAY_BUFFER, _positionBufferHandle);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
     
         glBindBuffer(GL_ARRAY_BUFFER, _colorBufferHandle);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
@@ -91,7 +91,7 @@ public:
         glBindVertexArray(_vaoHandle);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferHandle);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.GetVertexIndices().size(), model.GetVertexIndices().data(), GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.GetVertexIndices().size() * sizeof(IndexValue), model.GetVertexIndices().data(), GL_STATIC_DRAW);
     
         glBindBuffer(GL_ARRAY_BUFFER, _positionBufferHandle);
         glBufferData(GL_ARRAY_BUFFER, model.GetVertexPositions().size() * sizeof(float), model.GetVertexPositions().data(), GL_STATIC_DRAW);
@@ -101,7 +101,7 @@ public:
 
         glUniformMatrix4fv(_rotationMatrixLocation, 1, GL_FALSE, _rotationMatrix);
 
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, NULL);
+        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, NULL);
     }
 
 private:
@@ -188,6 +188,8 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     std::vector<IndexValue> indexData;
     indexData.assign(_indexData, _indexData+3);
 
+    Model simpleModel("assets/simple.obj");
+    
     Model model(positionData, colorData, indexData);
 
     IRenderer *renderer = new BasicRenderer();
@@ -196,7 +198,7 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     
     while (!applicationContext->IsClosing())
     {
-        renderer->Render(model);
+        renderer->Render(simpleModel);
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
     }
