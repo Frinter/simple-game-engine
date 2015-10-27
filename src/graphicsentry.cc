@@ -188,7 +188,7 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     std::vector<IndexValue> indexData;
     indexData.assign(_indexData, _indexData+3);
 
-    Model simpleModel("assets/simple.obj");
+    Model simpleModel("simple.obj");
     
     Model model(positionData, colorData, indexData);
 

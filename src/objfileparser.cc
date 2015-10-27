@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "mtlfileparser.hh"
 #include "objparser.hh"
 
 using std::ifstream;
@@ -20,6 +21,7 @@ using std::vector;
  * <vertex texture> -> vt {<value>}
  * <group declaration> -> g {IDENTIFIER}
  * <face element> -> f {<face index>}
+ * <material library> -> mtllib FILENAME
  * <material name> -> usemtl IDENTIFIER
  * <face index> -> INT_LITERAL | INT_LITERAL/INT_LITERAL | INT_LITERAL/INT_LITERAL/INT_LITERAL | INT_LITRAL//INT_LITERAL
  * <value> -> INT_LITERAL | FLOAT_LITERAL
@@ -34,10 +36,12 @@ enum class Token
     START,
     FLOAT_LITERAL,
     INT_LITERAL,
+    FILENAME,
     GEOMETRIC_VERTEX_INDICATOR,
     VERTEX_TEXTURE_INDICATOR,
     VERTEX_NORMAL_INDICATOR,
     POLYGON_FACE_INDICATOR,
+    MATERIAL_LIBRARY_INDICATOR,
     GROUP_INDICATOR,
     MATERIAL_NAME,
     IDENTIFIER,
@@ -66,6 +70,8 @@ std::string GetStringForToken(Token token)
         return "FLOAT_LITERAL";
     case Token::INT_LITERAL:
         return "INT_LITERAL";
+    case Token::FILENAME:
+        return "FILENAME";
     case Token::GEOMETRIC_VERTEX_INDICATOR:
         return "GEOMETRIC_VERTEX_INDICATOR";
     case Token::VERTEX_TEXTURE_INDICATOR:
@@ -76,6 +82,8 @@ std::string GetStringForToken(Token token)
         return "GROUP_INDICATOR";
     case Token::MATERIAL_NAME:
         return "MATERIAL_NAME";
+    case Token::MATERIAL_LIBRARY_INDICATOR:
+        return "MATERIAL_LIBRARY_INDICATOR";
     case Token::POLYGON_FACE_INDICATOR:
         return "POLYGON_FACE_INDICATOR";
     case Token::IDENTIFIER:
@@ -236,6 +244,18 @@ public:
                 }
                 _fileStream.get();
             }
+
+            if (input == 'm')
+            {
+                _fileStream.unget();
+                if (checkForString("mtllib"))
+                {
+                    _currentToken = Token::MATERIAL_LIBRARY_INDICATOR;
+                    return;
+                }
+                _fileStream.get();
+            }
+            
         }
         else // !isLineStart
         {
@@ -269,13 +289,24 @@ public:
                     input = _fileStream.get();
                 }
 
+                if (input == '.')
+                {
+                    _currentToken = Token::FILENAME;
+
+                    do 
+                    {
+                        _tokenBuffer.push_back(input);
+                        input = _fileStream.get();
+                    } while (isalnum(input));
+                }
+
                 _fileStream.unget();
                 return;
             }
         }
         
         std::stringstream errorStream;
-        errorStream << "Lexical error: file: " << _fileName << " line: " << _line << std::endl;
+        errorStream << "Scanning error: file: " << _fileName << " line: " << _line << std::endl;
         throw std::runtime_error(errorStream.str());
     }
 
@@ -307,8 +338,8 @@ private:
 class ObjFileParserImplementation : public ObjFileParser::IObjFileParserImplementation
 {
 public:
-    ObjFileParserImplementation(const char *fileName)
-        : _fileName(fileName), _scanner(NULL)
+    ObjFileParserImplementation(const char *path, const char *fileName)
+        : _path(path), _fileName(fileName), _scanner(NULL)
     {
     }
 
@@ -324,6 +355,7 @@ public:
     vector<IndexValue> GetIndices();
     
 private:
+    const char *_path;
     const char *_fileName;
     ObjTokenScanner *_scanner;
     vector<Vertex> _vertices;
@@ -334,8 +366,8 @@ private:
     void MatchLine();
 };
 
-ObjFileParser::ObjFileParser(const char *filename)
-    : _implementation(new ObjFileParserImplementation(filename))
+ObjFileParser::ObjFileParser(const char *path, const char *filename)
+    : _implementation(new ObjFileParserImplementation(path, filename))
 {
 }
 
@@ -393,7 +425,7 @@ vector<IndexValue> ObjFileParserImplementation::GetIndices()
 
 void ObjFileParserImplementation::Parse()
 {
-    _scanner = new ObjTokenScanner(_fileName);
+    _scanner = new ObjTokenScanner((string(_path) + _fileName).c_str());
 
     if (!_scanner->isOpen())
     {
@@ -506,6 +538,15 @@ void ObjFileParserImplementation::MatchLine()
     {
         _scanner->MatchToken(Token::MATERIAL_NAME);
         _scanner->MatchToken(Token::IDENTIFIER);            
+    }
+    else if (_scanner->GetCurrentToken() == Token::MATERIAL_LIBRARY_INDICATOR)
+    {
+        _scanner->MatchToken(Token::MATERIAL_LIBRARY_INDICATOR);
+        string fileName = _scanner->GetTokenBuffer();
+        _scanner->MatchToken(Token::FILENAME);            
+
+        MtlFileParser mtlParser(_path, fileName.c_str());
+        mtlParser.Parse();
     }
 
     _scanner->MatchToken(Token::NEWLINE);

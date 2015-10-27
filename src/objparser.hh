@@ -17,7 +17,7 @@ public:
     };
 
 public:
-    ObjFileParser(const char *filename);
+    ObjFileParser(const char *path, const char *filename);
     ~ObjFileParser();
 
     void Parse();
