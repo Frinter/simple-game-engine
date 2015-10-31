@@ -5,13 +5,23 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "framework/platform.hh"
 #include "GL/gl_core_3_3.h"
 #include "model.hh"
+#include "objparser.hh"
+#include "renderer.hh"
 #include "sleepservice.hh"
 #include "systemtimer.hh"
 #include "ticker.hh"
+
+using std::string;
+using std::vector;
+using std::unordered_map;
+
+using std::cout;
+using std::endl;
 
 float _rotationMatrix[] = {
     1.0f, 0.0f, 0.0f, 0.0f,
@@ -34,17 +44,81 @@ float _colorData[] = {
 
 IndexValue _indexData[] = { 0, 1, 2 };
 
-class IRenderer
+template <class T>
+class VertexArrayBuffer
 {
 public:
-    virtual void Use() = 0;
-    virtual void Render(const Model &model) = 0;
+    VertexArrayBuffer(GLenum targetType)
+        : _targetType(targetType)
+    {
+        glGenBuffers(1, &_bufferHandle);
+        _bindData = &VertexArrayBuffer::initialBindData;
+    }
+
+    ~VertexArrayBuffer()
+    {
+        glDeleteBuffers(1, &_bufferHandle);
+    }
+
+    void SetUp(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const GLvoid *pointer)
+    {
+        Bind();
+        glVertexAttribPointer(index, size, type, normalized, stride, pointer);
+    }
+    
+    void Bind()
+    {
+        glBindBuffer(_targetType, _bufferHandle);
+    }
+
+    IndexValue RegisterDataCollection(vector<T> vertexData)
+    {
+        IndexValue newIndex = _vertexDataCollections.size();
+        _vertexDataCollections.push_back(vertexData);
+        return newIndex;
+    }
+
+    void UseDataCollection(IndexValue collectionIndex)
+    {
+        (this->*_bindData)(collectionIndex);
+    }
+
+private:
+    void (VertexArrayBuffer::*_bindData)(IndexValue);
+
+    bool _isValid;
+    GLuint _bufferHandle;
+    GLenum _targetType;
+    IndexValue _currentIndex;
+    vector< vector<T> > _vertexDataCollections;
+
+private:
+    void initialBindData(IndexValue index)
+    {
+        _bindData = &VertexArrayBuffer::bindData;
+        unconditionalBindData(index);
+    }
+
+    void bindData(IndexValue index)
+    {
+        if (index != _currentIndex)
+            unconditionalBindData(index);
+    }
+
+    void unconditionalBindData(IndexValue index)
+    {
+        _currentIndex = index;
+        Bind();
+        vector<T> *vertexData = &_vertexDataCollections[index];
+        glBufferData(_targetType, vertexData->size() * sizeof(float), vertexData->data(), GL_STATIC_DRAW);
+    }
 };
 
 class BasicRenderer : public IRenderer
 {
 public:
     BasicRenderer()
+        : _indexBuffer(GL_ELEMENT_ARRAY_BUFFER), _positionBuffer(GL_ARRAY_BUFFER)
     {
         _vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/basic.vert");
         _fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/basic.frag");
@@ -60,20 +134,18 @@ public:
         glLinkProgram(_shaderProgramHandle);
 
         Use();
-        
-        GLuint vboHandles[3];
-        glGenBuffers(3, vboHandles);
-        _positionBufferHandle = vboHandles[0];
-        _colorBufferHandle = vboHandles[1];
-        _indexBufferHandle = vboHandles[2];
+
+        GLuint vboHandles[2];
+        glGenBuffers(2, vboHandles);
+        _colorBufferHandle = vboHandles[0];
+        _indexBufferHandle = vboHandles[1];
 
         glGenVertexArrays(1, &_vaoHandle);
         glBindVertexArray(_vaoHandle);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
 
-        glBindBuffer(GL_ARRAY_BUFFER, _positionBufferHandle);
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+        _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
     
         glBindBuffer(GL_ARRAY_BUFFER, _colorBufferHandle);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
@@ -85,16 +157,23 @@ public:
     {
         glUseProgram(_shaderProgramHandle);
     }
+
+    IndexValue RegisterIndexCollection(vector<IndexValue> indices)
+    {
+        return _indexBuffer.RegisterDataCollection(indices);
+    }
+    
+    IndexValue RegisterVertexCollection(vector<float> vertices)
+    {
+        return _positionBuffer.RegisterDataCollection(vertices);
+    }
     
     void Render(const Model &model)
     {
         glBindVertexArray(_vaoHandle);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBufferHandle);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.GetVertexIndices().size() * sizeof(IndexValue), model.GetVertexIndices().data(), GL_STATIC_DRAW);
-    
-        glBindBuffer(GL_ARRAY_BUFFER, _positionBufferHandle);
-        glBufferData(GL_ARRAY_BUFFER, model.GetVertexPositions().size() * sizeof(float), model.GetVertexPositions().data(), GL_STATIC_DRAW);
+        _indexBuffer.UseDataCollection(model.GetVertexIndicesId());
+        _positionBuffer.UseDataCollection(model.GetVertexPositionsId());
     
         glBindBuffer(GL_ARRAY_BUFFER, _colorBufferHandle);
         glBufferData(GL_ARRAY_BUFFER, model.GetVertexColors().size() * sizeof(float), model.GetVertexColors().data(), GL_STATIC_DRAW);
@@ -105,7 +184,9 @@ public:
     }
 
 private:
-    GLuint _positionBufferHandle;
+    VertexArrayBuffer<IndexValue> _indexBuffer;
+    VertexArrayBuffer<float> _positionBuffer;
+    
     GLuint _colorBufferHandle;
     GLuint _indexBufferHandle;
 
@@ -114,6 +195,8 @@ private:
     GLuint _shaderProgramHandle;
     GLuint _vaoHandle;
     GLuint _rotationMatrixLocation;
+
+    vector< vector<float> > _vertexCollections;
 
 private:
     GLuint CreateShaderFromSource(GLenum shaderType, const char *sourceFilename)
@@ -188,11 +271,15 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     std::vector<IndexValue> indexData;
     indexData.assign(_indexData, _indexData+3);
 
-    Model simpleModel("simple.obj");
+    ObjFileParser parser("assets/", "simple.obj");
+    parser.Parse();
     
-    Model model(positionData, colorData, indexData);
+    BasicRenderer *basicRenderer = new BasicRenderer();
+    IndexValue vertexCollectionId = basicRenderer->RegisterVertexCollection(parser.GetVertices());
+    IndexValue vertexIndicesId = basicRenderer->RegisterIndexCollection(parser.GetIndices());
+    Model simpleModel(vertexCollectionId, colorData, vertexIndicesId);
 
-    IRenderer *renderer = new BasicRenderer();
+    IRenderer *renderer = (IRenderer *)basicRenderer;
 
     ticker.Start(17);
     

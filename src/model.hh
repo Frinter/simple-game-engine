@@ -7,20 +7,16 @@
 class Model
 {
 public:
-    Model(const char *filename);
-    Model(std::vector<float> positions, std::vector<float> colors, std::vector<IndexValue> indices)
-        : _positions(positions), _colors(colors), _indices(indices)
+    Model(IndexValue positionsId, std::vector<float> colors, IndexValue indicesId)
+        : _positionsId(positionsId), _colors(colors), _indicesId(indicesId)
     {}
-    
-    std::vector<float> GetVertexPositions() const { return _positions; }
+
+    IndexValue GetVertexPositionsId() const { return _positionsId; }
+    IndexValue GetVertexIndicesId() const { return _indicesId; }
     std::vector<float> GetVertexColors() const { return _colors; }
-    std::vector<IndexValue> GetVertexIndices() const { return _indices; }
 
 private:
-    std::vector<float> _positions;
+    IndexValue _positionsId;
+    IndexValue _indicesId;
     std::vector<float> _colors;
-    std::vector<IndexValue> _indices;
-
-private:
-    void LoadFromFile(const char *filename);
 };
