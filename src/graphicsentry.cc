@@ -199,6 +199,24 @@ private:
     vector< vector<float> > _vertexCollections;
 
 private:
+    string GetShaderLog(GLuint shaderHandle)
+    {
+        string log;
+        GLint logLength;
+		
+        glGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH, &logLength);
+        if (logLength > 0)
+        {
+            char *logBuffer = (char *)malloc(logLength);
+            GLsizei written;
+            glGetShaderInfoLog(shaderHandle, logLength, &written, logBuffer);
+            log = logBuffer;
+            free(logBuffer);
+        }
+
+        return log;
+    }
+    
     GLuint CreateShaderFromSource(GLenum shaderType, const char *sourceFilename)
     {
         char *source = ReadFile(sourceFilename);
@@ -214,24 +232,12 @@ private:
         glGetShaderiv(handle, GL_COMPILE_STATUS, &compileResult);
         if (compileResult == GL_FALSE)
         {
-            GLint logLength;
-		
-            glGetShaderiv(handle, GL_INFO_LOG_LENGTH, &logLength);
-            if (logLength > 0)
-            {
-                char *log = (char *)malloc(logLength);
-                GLsizei written;
-                glGetShaderInfoLog(handle, logLength, &written, log);
-                std::cout << log << std::endl;
-                free(log);
-            }
-		
+            cout << GetShaderLog(handle) << endl;
             exit(1);
         }
 	
         return handle;
     }
-
 
     char *ReadFile(const char *filename)
     {
