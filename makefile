@@ -18,7 +18,7 @@ test: bin/tests.exe
 	@$< -d yes
 
 bin/bandit-camp.exe: $(OBJ)
-	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm
+	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++ -Wl,-subsystem,windows
 
 $(OBJ_DIRS) $(TEST_OBJ_DIRS):
 	@mkdir -p $@
@@ -30,10 +30,10 @@ build/%.o: src/%.cc build/%.d | $(OBJ_DIRS)
 	clang++ -c -o $@ -std=c++11 -Iinclude $<
 
 test-build/%.d: tests/%.cc | $(TEST_OBJ_DIRS)
-	@clang++ -std=c++11 -MM -MT test-build/$*.o -Iinclude -MF $@ $<
+	@clang++ -std=c++11 -MM -MT test-build/$*.o -Iinclude -Isrc -MF $@ $<
 
 test-build/%.o: tests/%.cc test-build/%.d | $(TEST_OBJ_DIRS)
-	clang++ -c -o $@ -std=c++11 -Iinclude $<
+	clang++ -c -o $@ -std=c++11 -Iinclude -Isrc $<
 
 bin/tests.exe: $(TEST_OBJ) $(filter-out $(MAIN_OBJ),$(OBJ))
 	clang++ -o $@ -Iinclude -std=c++11 $^
