@@ -55,9 +55,15 @@ typedef struct Vertex
     float coordinates[4];
 } Vertex;
 
+typedef struct Normal
+{
+    float coordinates[3];
+} Normal;
+
 typedef struct Face
 {
     std::vector<IndexValue> vertexIndices;
+    std::vector<IndexValue> normalIndices;
 } Face;
 
 std::string GetStringForToken(Token token)
@@ -352,6 +358,7 @@ public:
     void Parse();
 
     vector<float> GetVertices();
+    vector<float> GetNormals();
     vector<IndexValue> GetIndices();
     
 private:
@@ -359,10 +366,10 @@ private:
     const char *_fileName;
     ObjTokenScanner *_scanner;
     vector<Vertex> _vertices;
+    vector<Normal> _normals;
     vector<Face> _faces;
 
     void MatchValue();
-    void MatchFaceIndex();
     void MatchLine();
 };
 
@@ -386,6 +393,11 @@ vector<float> ObjFileParser::GetVertices()
     return _implementation->GetVertices();
 }
 
+vector<float> ObjFileParser::GetNormals()
+{
+    return _implementation->GetNormals();
+}
+
 vector<IndexValue> ObjFileParser::GetIndices()
 {
     return _implementation->GetIndices();
@@ -405,6 +417,26 @@ vector<float> ObjFileParserImplementation::GetVertices()
     }
 
     return processedVertices;
+}
+
+vector<float> ObjFileParserImplementation::GetNormals()
+{
+    vector<float> processedNormals;
+
+    for (int i = 0; i < _faces.size(); ++i)
+    {
+        Face face = _faces[i];
+        for (int j = 0; j < face.normalIndices.size(); ++j)
+        {
+            Normal normal = _normals[face.normalIndices[j]];
+            for (int jj = 0; jj < 3; ++jj)
+            {
+                processedNormals.push_back(normal.coordinates[jj]);
+            }
+        }
+    }
+
+    return processedNormals;
 }
 
 vector<IndexValue> ObjFileParserImplementation::GetIndices()
@@ -462,26 +494,6 @@ void ObjFileParserImplementation::MatchValue()
     }
 }
 
-void ObjFileParserImplementation::MatchFaceIndex()
-{
-    _scanner->MatchToken(Token::INT_LITERAL);
-
-    if (_scanner->GetCurrentToken() == Token::INDEX_SEPARATOR)
-    {
-        _scanner->MatchToken(Token::INDEX_SEPARATOR);
-
-        if (_scanner->GetCurrentToken() == Token::INT_LITERAL)
-        {
-            _scanner->MatchToken(Token::INT_LITERAL);
-        }
-        else if (_scanner->GetCurrentToken() == Token::INDEX_SEPARATOR)
-        {
-            _scanner->MatchToken(Token::INDEX_SEPARATOR);
-            _scanner->MatchToken(Token::INT_LITERAL);
-        }
-    }
-}
-
 void ObjFileParserImplementation::MatchLine()
 {
     if (_scanner->GetCurrentToken() == Token::GEOMETRIC_VERTEX_INDICATOR)
@@ -500,10 +512,16 @@ void ObjFileParserImplementation::MatchLine()
     }
     else if (_scanner->GetCurrentToken() == Token::VERTEX_NORMAL_INDICATOR)
     {
+        Normal normal;
         _scanner->MatchToken(Token::VERTEX_NORMAL_INDICATOR);
+        normal.coordinates[0] = atof(_scanner->GetTokenBuffer().c_str());        
         MatchValue();
+        normal.coordinates[1] = atof(_scanner->GetTokenBuffer().c_str());        
         MatchValue();
+        normal.coordinates[2] = atof(_scanner->GetTokenBuffer().c_str());        
         MatchValue();
+
+        _normals.push_back(normal);
     }
     else if (_scanner->GetCurrentToken() == Token::VERTEX_TEXTURE_INDICATOR)
     {
@@ -529,7 +547,23 @@ void ObjFileParserImplementation::MatchLine()
         while (_scanner->GetCurrentToken() != Token::NEWLINE)
         {
             face.vertexIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()) - 1);
-            MatchFaceIndex();
+            _scanner->MatchToken(Token::INT_LITERAL);
+
+            if (_scanner->GetCurrentToken() == Token::INDEX_SEPARATOR)
+            {
+                _scanner->MatchToken(Token::INDEX_SEPARATOR);
+
+                if (_scanner->GetCurrentToken() == Token::INT_LITERAL)
+                {
+                    _scanner->MatchToken(Token::INT_LITERAL);
+                }
+                else if (_scanner->GetCurrentToken() == Token::INDEX_SEPARATOR)
+                {
+                    _scanner->MatchToken(Token::INDEX_SEPARATOR);
+                    face.normalIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()) - 1);
+                    _scanner->MatchToken(Token::INT_LITERAL);
+                }
+            }
         }
 
         _faces.push_back(face);

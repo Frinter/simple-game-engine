@@ -1,6 +1,7 @@
 #version 330
 
 in vec4 VertexPosition;
+in vec3 VertexNormal;
 in vec3 VertexColor;
 
 out vec3 Color;

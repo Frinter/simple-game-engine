@@ -110,7 +110,7 @@ private:
         _currentIndex = index;
         Bind();
         vector<T> *vertexData = &_vertexDataCollections[index];
-        glBufferData(_targetType, vertexData->size() * sizeof(float), vertexData->data(), GL_STATIC_DRAW);
+        glBufferData(_targetType, vertexData->size() * sizeof(T), vertexData->data(), GL_STATIC_DRAW);
     }
 };
 
@@ -118,7 +118,7 @@ class BasicRenderer : public IRenderer
 {
 public:
     BasicRenderer()
-        : _indexBuffer(GL_ELEMENT_ARRAY_BUFFER), _positionBuffer(GL_ARRAY_BUFFER)
+        : _indexBuffer(GL_ELEMENT_ARRAY_BUFFER), _positionBuffer(GL_ARRAY_BUFFER), _normalBuffer(GL_ARRAY_BUFFER)
     {
         _vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/basic.vert");
         _fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/basic.frag");
@@ -129,7 +129,8 @@ public:
         glAttachShader(_shaderProgramHandle, _fragmentShaderHandle);
 
         glBindAttribLocation(_shaderProgramHandle, 0, "VertexPosition");
-        glBindAttribLocation(_shaderProgramHandle, 1, "VertexColor");
+        glBindAttribLocation(_shaderProgramHandle, 1, "VertexNormal");
+        glBindAttribLocation(_shaderProgramHandle, 2, "VertexColor");
 
         glLinkProgram(_shaderProgramHandle);
 
@@ -144,11 +145,13 @@ public:
         glBindVertexArray(_vaoHandle);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
 
         _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+        _normalBuffer.SetUp(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
     
         glBindBuffer(GL_ARRAY_BUFFER, _colorBufferHandle);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
 
         _rotationMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "RotationMatrix");
     }
@@ -168,12 +171,18 @@ public:
         return _positionBuffer.RegisterDataCollection(vertices);
     }
     
+    IndexValue RegisterNormalCollection(vector<float> normals)
+    {
+        return _normalBuffer.RegisterDataCollection(normals);
+    }
+
     void Render(const Model &model)
     {
         glBindVertexArray(_vaoHandle);
 
         _indexBuffer.UseDataCollection(model.GetVertexIndicesId());
         _positionBuffer.UseDataCollection(model.GetVertexPositionsId());
+        _normalBuffer.UseDataCollection(model.GetVertexNormalsId());
     
         glBindBuffer(GL_ARRAY_BUFFER, _colorBufferHandle);
         glBufferData(GL_ARRAY_BUFFER, model.GetVertexColors().size() * sizeof(float), model.GetVertexColors().data(), GL_STATIC_DRAW);
@@ -186,6 +195,7 @@ public:
 private:
     VertexArrayBuffer<IndexValue> _indexBuffer;
     VertexArrayBuffer<float> _positionBuffer;
+    VertexArrayBuffer<float> _normalBuffer;
     
     GLuint _colorBufferHandle;
     GLuint _indexBufferHandle;
@@ -282,8 +292,9 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     
     BasicRenderer *basicRenderer = new BasicRenderer();
     IndexValue vertexCollectionId = basicRenderer->RegisterVertexCollection(parser.GetVertices());
+    IndexValue normalCollectionId = basicRenderer->RegisterNormalCollection(parser.GetNormals());
     IndexValue vertexIndicesId = basicRenderer->RegisterIndexCollection(parser.GetIndices());
-    Model simpleModel(vertexCollectionId, colorData, vertexIndicesId);
+    Model simpleModel(vertexCollectionId, normalCollectionId, colorData, vertexIndicesId);
 
     IRenderer *renderer = (IRenderer *)basicRenderer;
 
