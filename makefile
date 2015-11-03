@@ -11,11 +11,15 @@ TEST_SRC := $(foreach dir,$(TEST_SUB_DIRS),$(wildcard $(dir)/*.cc))
 TEST_OBJ := $(patsubst tests/%.cc,test-build/%.o,$(TEST_SRC))
 
 .PRECIOUS: build/%.d
-.PHONY: clean test release
+.PHONY: clean test release debug
 
+debug: bin/debug-build.exe
 release: bin/bandit-camp.exe
 test: bin/tests.exe
 	@$< -d yes
+
+bin/debug-build.exe: $(OBJ)
+	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++
 
 bin/bandit-camp.exe: $(OBJ)
 	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++ -Wl,-subsystem,windows
