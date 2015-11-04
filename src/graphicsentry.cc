@@ -78,6 +78,11 @@ public:
         return newIndex;
     }
 
+    unsigned int currentSize() const
+    {
+        return _vertexDataCollections[_currentIndex].size();
+    }
+
     void UseDataCollection(IndexValue collectionIndex)
     {
         (this->*_bindData)(collectionIndex);
@@ -141,7 +146,7 @@ public:
         glEnableVertexAttribArray(1);
 
         _modelMatrix = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, 0.0));
-        _viewMatrix = glm::lookAt(glm::vec3(2.0,2.0,1.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        _viewMatrix = glm::lookAt(glm::vec3(2.0,2.0,3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
         _projectionMatrix = glm::frustum(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
         _modelViewMatrix = _viewMatrix * _modelMatrix;
         _MVPMatrix = _projectionMatrix * _modelViewMatrix;
@@ -155,8 +160,8 @@ public:
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
 
         _light.position = glm::vec4(0.3, 0.0, 1.0, 1.0);
-        _light.La = glm::vec3(1.0, 1.0, 1.0);
-        _light.Ld = glm::vec3(1.0, 1.0, 1.0);
+        _light.La = glm::vec3(0.2, 0.2, 0.2);
+        _light.Ld = glm::vec3(0.6, 0.6, 0.6);
         _light.Ls = glm::vec3(1.0, 1.0, 1.0);
 
         setUniform("Light.Position", &_light.position);
@@ -206,7 +211,7 @@ public:
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, NULL);
+        glDrawElements(GL_TRIANGLES, _indexBuffer.currentSize(), GL_UNSIGNED_INT, NULL);
     }
 
 private:
@@ -385,7 +390,7 @@ public:
                 processedIndices.push_back(face.vertexIndices[j]);
             }
         }
-
+        cout << processedIndices.size() << endl;
         return processedIndices;
     }
 
