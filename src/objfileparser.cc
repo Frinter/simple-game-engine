@@ -9,6 +9,8 @@
 #include "mtlfileparser.hh"
 #include "objparser.hh"
 
+using namespace ObjParser;
+
 using std::ifstream;
 using std::string;
 using std::unordered_map;
@@ -49,22 +51,6 @@ enum class Token
     INDEX_SEPARATOR,
     SCANEOF
 };
-
-typedef struct Vertex
-{
-    float coordinates[4];
-} Vertex;
-
-typedef struct Normal
-{
-    float coordinates[3];
-} Normal;
-
-typedef struct Face
-{
-    std::vector<IndexValue> vertexIndices;
-    std::vector<IndexValue> normalIndices;
-} Face;
 
 std::string GetStringForToken(Token token)
 {
@@ -341,11 +327,46 @@ private:
     }
 };
 
+class ObjParseResult : public IParseResult
+{
+public:
+    std::vector<Vertex> GetVertices() const
+    {
+        return _vertices;
+    }
+
+    std::vector<Normal> GetNormals() const
+    {
+        return _normals;
+    }
+
+    std::vector<IndexValue> GetIndices() const
+    {
+        return _indices;
+    }
+
+    std::vector<Face> GetFaces() const
+    {
+        return _faces;
+    }
+
+    std::vector<Material*> GetMaterials() const
+    {
+        return _materials;
+    }
+
+    std::vector<Vertex> _vertices;
+    std::vector<Normal> _normals;
+    std::vector<IndexValue> _indices;
+    std::vector<Face> _faces;
+    std::vector<Material*> _materials;
+};
+
 class ObjFileParserImplementation : public ObjFileParser::IObjFileParserImplementation
 {
 public:
     ObjFileParserImplementation(const char *path, const char *fileName)
-        : _path(path), _fileName(fileName), _scanner(NULL)
+        : _path(path), _fileName(fileName), _scanner(NULL), _currentMaterial(NULL)
     {
     }
 
@@ -354,21 +375,20 @@ public:
         if (_scanner != NULL)
             delete _scanner;
     }
-    
-    void Parse();
+
+    IParseResult *Parse();
 
     vector<float> GetVertices();
     vector<float> GetNormals();
     vector<IndexValue> GetIndices();
+    vector<Face> GetFaces();
     
 private:
     const char *_path;
     const char *_fileName;
     ObjTokenScanner *_scanner;
-    vector<Vertex> _vertices;
-    vector<Normal> _normals;
-    vector<Face> _faces;
-
+    ObjParseResult *_result;
+    Material *_currentMaterial;
     void MatchValue();
     void MatchLine();
 };
@@ -383,81 +403,15 @@ ObjFileParser::~ObjFileParser()
     delete _implementation;
 }
 
-void ObjFileParser::Parse()
+IParseResult *ObjFileParser::Parse()
 {
-    _implementation->Parse();
+    return _implementation->Parse();
 }
 
-vector<float> ObjFileParser::GetVertices()
-{
-    return _implementation->GetVertices();
-}
-
-vector<float> ObjFileParser::GetNormals()
-{
-    return _implementation->GetNormals();
-}
-
-vector<IndexValue> ObjFileParser::GetIndices()
-{
-    return _implementation->GetIndices();
-}
-
-vector<float> ObjFileParserImplementation::GetVertices()
-{
-    vector<float> processedVertices;
-
-    for (int i = 0; i < _vertices.size(); ++i)
-    {
-        Vertex vertex = _vertices[i];
-        for (int j = 0; j < 4; ++j)
-        {
-            processedVertices.push_back(vertex.coordinates[j]);
-        }
-    }
-
-    return processedVertices;
-}
-
-vector<float> ObjFileParserImplementation::GetNormals()
-{
-    vector<float> processedNormals;
-
-    for (int i = 0; i < _faces.size(); ++i)
-    {
-        Face face = _faces[i];
-        for (int j = 0; j < face.normalIndices.size(); ++j)
-        {
-            Normal normal = _normals[face.normalIndices[j]];
-            for (int jj = 0; jj < 3; ++jj)
-            {
-                processedNormals.push_back(normal.coordinates[jj]);
-            }
-        }
-    }
-
-    return processedNormals;
-}
-
-vector<IndexValue> ObjFileParserImplementation::GetIndices()
-{
-    vector<IndexValue> processedIndices;
-
-    for (int i = 0; i < _faces.size(); ++i)
-    {
-        Face face = _faces[i];
-        for (int j = 0; j < 3; ++j)
-        {
-            processedIndices.push_back(face.vertexIndices[j]);
-        }
-    }
-
-    return processedIndices;
-}
-
-void ObjFileParserImplementation::Parse()
+IParseResult *ObjFileParserImplementation::Parse()
 {
     _scanner = new ObjTokenScanner((string(_path) + _fileName).c_str());
+    _result = new ObjParseResult();
 
     if (!_scanner->isOpen())
     {
@@ -474,6 +428,8 @@ void ObjFileParserImplementation::Parse()
     }
 
     _scanner->MatchToken(Token::SCANEOF);
+
+    return _result;
 }
 
 void ObjFileParserImplementation::MatchValue()
@@ -508,7 +464,7 @@ void ObjFileParserImplementation::MatchLine()
         MatchValue();
         vertex.coordinates[3] = 1.0;
 
-        _vertices.push_back(vertex);
+        _result->_vertices.push_back(vertex);
     }
     else if (_scanner->GetCurrentToken() == Token::VERTEX_NORMAL_INDICATOR)
     {
@@ -521,7 +477,7 @@ void ObjFileParserImplementation::MatchLine()
         normal.coordinates[2] = atof(_scanner->GetTokenBuffer().c_str());        
         MatchValue();
 
-        _normals.push_back(normal);
+        _result->_normals.push_back(normal);
     }
     else if (_scanner->GetCurrentToken() == Token::VERTEX_TEXTURE_INDICATOR)
     {
@@ -543,7 +499,8 @@ void ObjFileParserImplementation::MatchLine()
     {
         Face face;
         _scanner->MatchToken(Token::POLYGON_FACE_INDICATOR);
-        
+        face.material = _currentMaterial;
+
         while (_scanner->GetCurrentToken() != Token::NEWLINE)
         {
             face.vertexIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()) - 1);
@@ -566,12 +523,30 @@ void ObjFileParserImplementation::MatchLine()
             }
         }
 
-        _faces.push_back(face);
+        _result->_faces.push_back(face);
     }
     else if (_scanner->GetCurrentToken() == Token::MATERIAL_NAME)
     {
         _scanner->MatchToken(Token::MATERIAL_NAME);
-        _scanner->MatchToken(Token::IDENTIFIER);            
+        string name = _scanner->GetTokenBuffer();
+        _scanner->MatchToken(Token::IDENTIFIER);
+
+        _currentMaterial = NULL;
+        for (int i = 0; i < _result->_materials.size(); ++i)
+        {
+            if (_result->_materials[i]->name == name)
+            {
+                _currentMaterial = _result->_materials[i];
+                break;
+            }
+        }
+
+        if (_currentMaterial == NULL)
+        {
+            std::stringstream errorStream;
+            errorStream << "Parse error: coult not find referenced material: " << name << " - " << _fileName << " line: " << _scanner->GetLine();
+            throw std::runtime_error(errorStream.str());
+        }
     }
     else if (_scanner->GetCurrentToken() == Token::MATERIAL_LIBRARY_INDICATOR)
     {
@@ -581,6 +556,10 @@ void ObjFileParserImplementation::MatchLine()
 
         MtlFileParser mtlParser(_path, fileName.c_str());
         mtlParser.Parse();
+
+        vector<Material*> newMaterials = mtlParser.GetMaterials();
+        _result->_materials.reserve(_result->_materials.size() + newMaterials.size());
+        _result->_materials.insert(_result->_materials.end(), newMaterials.begin(), newMaterials.end());
     }
 
     _scanner->MatchToken(Token::NEWLINE);

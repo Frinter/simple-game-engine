@@ -7,8 +7,9 @@
 #include <vector>
 #include <unordered_map>
 
-#include "glm/glm.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "framework/platform.hh"
 #include "GL/gl_core_3_3.h"
@@ -41,13 +42,6 @@ typedef struct MaterialInfo
     glm::vec3 Ks;
     float shininess;
 } MaterialInfo;
-
-glm::mat4 _rotationMatrix(1.0);
-glm::mat4 _projectionMatrix(1.0);
-glm::mat4 _modelViewMatrix(1.0);
-glm::mat4 _MVPMatrix(1.0);
-
-glm::mat3 _normalMatrix(1.0);
 
 template <class T>
 class VertexArrayBuffer
@@ -145,6 +139,12 @@ public:
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
 
+        _modelMatrix = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, 0.0));
+        _viewMatrix = glm::lookAt(glm::vec3(2.0,2.0,1.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        _projectionMatrix = glm::frustum(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
+        _modelViewMatrix = _viewMatrix * _modelMatrix;
+        _MVPMatrix = _projectionMatrix * _modelViewMatrix;
+
         _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
         _normalBuffer.SetUp(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
 
@@ -153,13 +153,13 @@ public:
         _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
 
-        _light.position = glm::vec4(0.0, 0.0, 1.0, 1.0);
+        _light.position = glm::vec4(0.3, 0.0, 1.0, 1.0);
         _light.La = glm::vec3(1.0, 1.0, 1.0);
         _light.Ld = glm::vec3(1.0, 1.0, 1.0);
         _light.Ls = glm::vec3(1.0, 1.0, 1.0);
 
         _material.Ka = glm::vec3(1.0, 0.0, 1.0);
-        _material.Kd = glm::vec3(0.0, 0.0, 1.0);
+        _material.Kd = glm::vec3(1.0, 1.0, 1.0);
         _material.Ks = glm::vec3(0.0, 0.0, 1.0);
         _material.shininess = 0.5;
 
@@ -227,6 +227,14 @@ private:
     GLuint _normalMatrixLocation;
     GLuint _projectionMatrixLocation;
     GLuint _MVPMatrixLocation;
+
+    glm::mat4 _projectionMatrix;
+    glm::mat4 _viewMatrix;
+    glm::mat4 _modelMatrix;
+    glm::mat4 _modelViewMatrix;
+    glm::mat4 _MVPMatrix;
+
+    glm::mat3 _normalMatrix;
     
 private:
     void setUniform(const char *uniformName, const float *info)
@@ -309,6 +317,74 @@ private:
     }
 };
 
+class ObjImporter
+{
+public:
+    ObjImporter(ObjParser::IParseResult *result)
+        : _parseResult(result)
+    {
+    }
+
+    vector<float> GetVertices()
+    {
+        vector<float> processedVertices;
+        vector<ObjParser::Vertex> vertices = _parseResult->GetVertices();
+
+        for (int i = 0; i < vertices.size(); ++i)
+        {
+            ObjParser::Vertex vertex = vertices[i];
+            for (int j = 0; j < 4; ++j)
+            {
+                processedVertices.push_back(vertex.coordinates[j]);
+            }
+        }
+
+        return processedVertices;
+    }
+
+    vector<float> GetNormals()
+    {
+        vector<float> processedNormals;
+        vector<ObjParser::Face> faces = _parseResult->GetFaces();
+        vector<ObjParser::Normal> normals = _parseResult->GetNormals();
+
+        for (int i = 0; i < faces.size(); ++i)
+        {
+            ObjParser::Face face = faces[i];
+            for (int j = 0; j < face.normalIndices.size(); ++j)
+            {
+                ObjParser::Normal normal = normals[face.normalIndices[j]];
+                for (int jj = 0; jj < 3; ++jj)
+                {
+                    processedNormals.push_back(normal.coordinates[jj]);
+                }
+            }
+        }
+
+        return processedNormals;
+    }
+
+    vector<IndexValue> GetIndices()
+    {
+        vector<IndexValue> processedIndices;
+        vector<ObjParser::Face> faces = _parseResult->GetFaces();
+
+        for (int i = 0; i < faces.size(); ++i)
+        {
+            ObjParser::Face face = faces[i];
+            for (int j = 0; j < 3; ++j)
+            {
+                processedIndices.push_back(face.vertexIndices[j]);
+            }
+        }
+
+        return processedIndices;
+    }
+
+private:
+    ObjParser::IParseResult *_parseResult;
+};
+
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 {
     windowController->CreateContext();
@@ -318,13 +394,14 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     Ticker ticker = Ticker(&systemTimer, &sleepService);
 
     // Load 3d assets
-    ObjFileParser parser("assets/", "simple.obj");
-    parser.Parse();
+    ObjParser::ObjFileParser parser("assets/", "simple.obj");
+    ObjParser::IParseResult *parseResult = parser.Parse();
+    ObjImporter importer(parseResult);
     
     ADSRenderer *adsRenderer = new ADSRenderer();
-    IndexValue vertexCollectionId = adsRenderer->RegisterVertexCollection(parser.GetVertices());
-    IndexValue normalCollectionId = adsRenderer->RegisterNormalCollection(parser.GetNormals());
-    IndexValue vertexIndicesId = adsRenderer->RegisterIndexCollection(parser.GetIndices());
+    IndexValue vertexCollectionId = adsRenderer->RegisterVertexCollection(importer.GetVertices());
+    IndexValue normalCollectionId = adsRenderer->RegisterNormalCollection(importer.GetNormals());
+    IndexValue vertexIndicesId = adsRenderer->RegisterIndexCollection(importer.GetIndices());
     Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId);
 
     IRenderer *renderer = (IRenderer *)adsRenderer;

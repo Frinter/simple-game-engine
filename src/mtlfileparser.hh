@@ -1,35 +1,32 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
-typedef struct ColorValue
-{
-    float red, green, blue;
-} ColorValue;
+#include "objtypes.hh"
 
-class IMaterial
+namespace ObjParser
 {
-public:
-    virtual std::string GetName() const = 0;
-    virtual ColorValue GetAmbientColor() const = 0;
-};
-
-class MtlFileParser
-{
-public:
-    class IMtlFileParserImplementation
+    class MtlFileParser
     {
     public:
-        virtual ~IMtlFileParserImplementation() {}
-        virtual void Parse() = 0;
-    };
+        class IMtlFileParserImplementation
+        {
+        public:
+            virtual ~IMtlFileParserImplementation() {}
+            virtual void Parse() = 0;
+            virtual std::vector<Material*> GetMaterials() const = 0;
+        };
 
-public:
-    MtlFileParser(const char *path, const char *fileName);
-    ~MtlFileParser();
+    public:
+        MtlFileParser(const char *path, const char *fileName);
+        ~MtlFileParser();
 
-    void Parse();
+        void Parse();
+
+        std::vector<Material*> GetMaterials() const;
     
-private:
-    IMtlFileParserImplementation *_implementation;
-};
+    private:
+        IMtlFileParserImplementation *_implementation;
+    };
+}

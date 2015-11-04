@@ -3,30 +3,37 @@
 #include <vector>
 
 #include "types.hh"
+#include "objtypes.hh"
 
-class ObjFileParser
+namespace ObjParser
 {
-public:
-    class IObjFileParserImplementation
+    class IParseResult
     {
     public:
-        virtual ~IObjFileParserImplementation() {}
-        virtual void Parse() = 0;
-        virtual std::vector<float> GetVertices() = 0;
-        virtual std::vector<float> GetNormals() = 0;
-        virtual std::vector<IndexValue> GetIndices() = 0;
+        virtual std::vector<Vertex> GetVertices() const = 0;
+        virtual std::vector<Normal> GetNormals() const = 0;
+        virtual std::vector<IndexValue> GetIndices() const = 0;
+        virtual std::vector<Face> GetFaces() const = 0;
+        virtual std::vector<Material*> GetMaterials() const = 0;
     };
 
-public:
-    ObjFileParser(const char *path, const char *filename);
-    ~ObjFileParser();
+    class ObjFileParser
+    {
+    public:
+        class IObjFileParserImplementation
+        {
+        public:
+            virtual ~IObjFileParserImplementation() {}
+            virtual IParseResult *Parse() = 0;
+        };
 
-    void Parse();
+    public:
+        ObjFileParser(const char *path, const char *filename);
+        ~ObjFileParser();
 
-    std::vector<float> GetVertices();
-    std::vector<float> GetNormals();
-    std::vector<IndexValue> GetIndices();
+        IParseResult *Parse();
     
-private:
-    IObjFileParserImplementation *_implementation;
-};
+    private:
+        IObjFileParserImplementation *_implementation;
+    };
+}

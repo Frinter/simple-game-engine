@@ -8,37 +8,12 @@
 
 #include "mtlfileparser.hh"
 
+using namespace ObjParser;
+
 using std::ifstream;
 using std::string;
 using std::unordered_map;
 using std::vector;
-
-class Material : public IMaterial
-{
-public:
-    Material(string name)
-        : _name(name)
-    {}
-
-    string GetName() const
-    {
-        return _name.c_str();
-    }
-
-    ColorValue GetAmbientColor() const
-    {
-        return _ambientColor;
-    }
-
-    void SetAmbientColor(ColorValue color)
-    {
-        _ambientColor = color;
-    }
-
-private:
-    string _name;
-    ColorValue _ambientColor;
-};
 
 /*
  * Grammar:
@@ -56,6 +31,8 @@ private:
         Start,
         Float,
         AmbientColor,
+        DiffuseColor,
+        SpecularColor,
         LineEnd,
         Identifier,
         Integer,
@@ -73,6 +50,10 @@ private:
             return "Float";
         case Token::AmbientColor:
             return "AmbientColor";
+        case Token::DiffuseColor:
+            return "DiffuseColor";
+        case Token::SpecularColor:
+            return "SpecularColor";
         case Token::LineEnd:
             return "LineEnd";
         case Token::Identifier:
@@ -207,6 +188,18 @@ private:
                     _currentToken = Token::AmbientColor;
                     return;
                 }
+
+                if (checkForString("Kd"))
+                {
+                    _currentToken = Token::DiffuseColor;
+                    return;
+                }
+
+                if (checkForString("Ks"))
+                {
+                    _currentToken = Token::SpecularColor;
+                    return;
+                }
             }
             else
             {
@@ -271,25 +264,27 @@ public:
 
         delete _scanner;
     }
+
+    vector<Material*> GetMaterials() const
+    {
+        return _materials;
+    }
     
 private:
     const char *_path;
     const char *_fileName;
     MtlTokenScanner *_scanner;
     Material *_currentMaterial;
-    vector<IMaterial*> _materials;
+    vector<Material*> _materials;
 
     void MatchLine()
     {
         if (_scanner->GetCurrentToken() == Token::MaterialName)
         {
             _scanner->MatchToken(Token::MaterialName);
-            string name = _scanner->GetTokenBuffer();
-            if (_currentMaterial != NULL)
-            {
-                _materials.push_back(_currentMaterial);
-            }
-            _currentMaterial = new Material(name);
+            _currentMaterial = new Material();
+            _currentMaterial->name = _scanner->GetTokenBuffer();
+            _materials.push_back(_currentMaterial);
             _scanner->MatchToken(Token::Identifier);
         }
         else if (_scanner->GetCurrentToken() == Token::AmbientColor)
@@ -303,7 +298,33 @@ private:
             color.blue = atof(_scanner->GetTokenBuffer().c_str());
             MatchValue();
 
-            _currentMaterial->SetAmbientColor(color);
+            _currentMaterial->ambientColor = color;
+        }
+        else if (_scanner->GetCurrentToken() == Token::DiffuseColor)
+        {
+            _scanner->MatchToken(Token::DiffuseColor);
+            ColorValue color;
+            color.red = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
+            color.green = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
+            color.blue = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
+
+            _currentMaterial->diffuseColor = color;
+        }
+        else if (_scanner->GetCurrentToken() == Token::SpecularColor)
+        {
+            _scanner->MatchToken(Token::SpecularColor);
+            ColorValue color;
+            color.red = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
+            color.green = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
+            color.blue = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
+
+            _currentMaterial->specularColor = color;
         }
 
         _scanner->MatchToken(Token::LineEnd);
@@ -326,7 +347,6 @@ private:
             throw std::runtime_error(errorStream.str());
         }
     }
-
 };
 
 MtlFileParser::MtlFileParser(const char *path, const char *fileName)
@@ -342,4 +362,9 @@ MtlFileParser::~MtlFileParser()
 void MtlFileParser::Parse()
 {
     _implementation->Parse();
+}
+
+vector<Material*> MtlFileParser::GetMaterials() const
+{
+    return _implementation->GetMaterials();
 }
