@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -158,16 +159,6 @@ public:
         _light.Ld = glm::vec3(1.0, 1.0, 1.0);
         _light.Ls = glm::vec3(1.0, 1.0, 1.0);
 
-        _material.Ka = glm::vec3(1.0, 0.0, 1.0);
-        _material.Kd = glm::vec3(1.0, 1.0, 1.0);
-        _material.Ks = glm::vec3(0.0, 0.0, 1.0);
-        _material.shininess = 0.5;
-
-        setUniform("Material.Ka", &_material.Ka);
-        setUniform("Material.Kd", &_material.Kd);
-        setUniform("Material.Ks", &_material.Ks);
-        setUniform("Material.Shininess", &_material.shininess);
-        
         setUniform("Light.Position", &_light.position);
         setUniform("Light.La", &_light.La);
         setUniform("Light.Ld", &_light.Ld);
@@ -194,6 +185,13 @@ public:
         return _normalBuffer.RegisterDataCollection(normals);
     }
 
+    IndexValue RegisterMaterial(MaterialInfo material)
+    {
+        IndexValue index = _materials.size();
+        _materials.push_back(material);
+        return index;
+    }
+
     void Render(const Model &model)
     {
         glBindVertexArray(_vaoHandle);
@@ -201,6 +199,7 @@ public:
         _indexBuffer.UseDataCollection(model.GetVertexIndicesId());
         _positionBuffer.UseDataCollection(model.GetVertexPositionsId());
         _normalBuffer.UseDataCollection(model.GetVertexNormalsId());
+        useMaterial(model.GetMaterialId());
 
         glUniformMatrix4fv(_modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(_modelViewMatrix));
         glUniformMatrix4fv(_normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(_normalMatrix));
@@ -212,11 +211,12 @@ public:
 
 private:
     LightInfo _light;
-    MaterialInfo _material;
     
     VertexArrayBuffer<IndexValue> _indexBuffer;
     VertexArrayBuffer<float> _positionBuffer;
     VertexArrayBuffer<float> _normalBuffer;
+
+    vector<MaterialInfo> _materials;
     
     GLuint _vertexShaderHandle;
     GLuint _fragmentShaderHandle;
@@ -237,6 +237,14 @@ private:
     glm::mat3 _normalMatrix;
     
 private:
+    void useMaterial(IndexValue index)
+    {
+        setUniform("Material.Ka", &_materials[index].Ka);
+        setUniform("Material.Kd", &_materials[index].Kd);
+        setUniform("Material.Ks", &_materials[index].Ks);
+        setUniform("Material.Shininess", &_materials[index].shininess);
+    }
+
     void setUniform(const char *uniformName, const float *info)
     {
         GLuint uniformLocation = glGetUniformLocation(_shaderProgramHandle, uniformName);
@@ -381,8 +389,44 @@ public:
         return processedIndices;
     }
 
+    MaterialInfo GetMaterial(const char *name)
+    {
+        vector<ObjParser::Material*> materials = _parseResult->GetMaterials();
+        ObjParser::Material *material = NULL;
+
+        for (int i = 0; i < materials.size(); ++i)
+        {
+            if (materials[i]->name == name)
+            {
+                return translateMaterial(materials[i]);
+            }
+        }
+
+        std::stringstream errorStream;
+        errorStream << "Runtime error: unable to find material in parse result: " << name;
+        throw std::runtime_error(errorStream.str());
+    }
+
 private:
     ObjParser::IParseResult *_parseResult;
+
+private:
+    MaterialInfo translateMaterial(ObjParser::Material *material)
+    {
+        MaterialInfo info;
+
+        info.Ka = translateColor(material->ambientColor);
+        info.Kd = translateColor(material->diffuseColor);
+        info.Ks = translateColor(material->specularColor);
+        info.shininess = 0.5;
+
+        return info;
+    }
+
+    glm::vec3 translateColor(ObjParser::ColorValue color)
+    {
+        return glm::vec3(color.red, color.green, color.blue);
+    }
 };
 
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
@@ -402,7 +446,8 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     IndexValue vertexCollectionId = adsRenderer->RegisterVertexCollection(importer.GetVertices());
     IndexValue normalCollectionId = adsRenderer->RegisterNormalCollection(importer.GetNormals());
     IndexValue vertexIndicesId = adsRenderer->RegisterIndexCollection(importer.GetIndices());
-    Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId);
+    IndexValue materialId = adsRenderer->RegisterMaterial(importer.GetMaterial("Red"));
+    Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId, materialId);
 
     IRenderer *renderer = (IRenderer *)adsRenderer;
 
