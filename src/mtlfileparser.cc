@@ -131,7 +131,7 @@ private:
         {
             string actual;
         
-            for (actual = ""; actual.size() < s.size(); actual.push_back(_fileStream.get()))
+            for (actual = ""; actual.size() <= s.size(); actual.push_back(_fileStream.get()))
             {
                 if (actual != s.substr(0, actual.size()))
                 {
@@ -147,6 +147,7 @@ private:
         void GetNextToken()
         {
             char input = _fileStream.get();
+            _tokenBuffer = "";
 
             while (input == ' ' || input == '#')
             {
