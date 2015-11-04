@@ -313,7 +313,7 @@ private:
     {
         string actual;
         
-        for (actual = ""; actual.size() < s.size(); actual.push_back(_fileStream.get()))
+        for (actual = ""; actual.size() <= s.size(); actual.push_back(_fileStream.get()))
         {
             if (actual != s.substr(0, actual.size()))
             {
