@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <iostream>
+
 #include "mtlfileparser.hh"
 #include "objparser.hh"
 
@@ -298,12 +300,12 @@ public:
         }
         
         std::stringstream errorStream;
-        errorStream << "Scanning error: file: " << _fileName << " line: " << _line << std::endl;
+        errorStream << "Obj scanning error: file: " << _fileName << " line: " << _line << std::endl;
         throw std::runtime_error(errorStream.str());
     }
 
 private:
-    const char *_fileName;
+    string _fileName;
     ifstream _fileStream;
     Token _currentToken;
     unsigned int _line;
@@ -445,7 +447,7 @@ void ObjFileParserImplementation::MatchValue()
     else
     {
         std::stringstream errorStream;
-        errorStream << "Parse error: Expected value type: " << _fileName << " line: " << _scanner->GetLine();
+        errorStream << "Obj parse error: Expected value type: " << _fileName << " line: " << _scanner->GetLine();
         throw std::runtime_error(errorStream.str());
     }
 }

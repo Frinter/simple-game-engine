@@ -110,7 +110,7 @@ private:
             else
             {
                 std::stringstream errorStream;
-                errorStream << "Syntax error: file: " << _fileName << " line: " << _line << std::endl;
+                errorStream << "Mtl syntax error: file: " << _fileName << " line: " << _line << std::endl;
                 errorStream << "   Expected: " << GetStringForToken(token) << " Actual: " << GetStringForToken(_currentToken) << std::endl;
                 if (_currentToken == Token::Identifier)
                 {
@@ -252,7 +252,7 @@ public:
         if (!_scanner->isOpen())
         {
             std::stringstream errorStream;
-            errorStream << "Runtime error: unable to open OBJ file: " << _fileName;
+            errorStream << "Runtime error: unable to open MTL file: " << _fileName;
             throw std::runtime_error(errorStream.str());
         }
 
@@ -344,7 +344,7 @@ private:
         else
         {
             std::stringstream errorStream;
-            errorStream << "Parse error: Expected value type: " << _fileName << " line: " << _scanner->GetLine();
+            errorStream << "Mtl parse error: Expected value type: " << _fileName << " line: " << _scanner->GetLine();
             throw std::runtime_error(errorStream.str());
         }
     }
