@@ -116,6 +116,8 @@ public:
 
         _shaderProgramHandle = glCreateProgram();
 
+        glEnable(GL_DEPTH_TEST);
+
         glAttachShader(_shaderProgramHandle, _vertexShaderHandle);
         glAttachShader(_shaderProgramHandle, _fragmentShaderHandle);
 
@@ -132,8 +134,8 @@ public:
         glEnableVertexAttribArray(1);
 
         _modelMatrix = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, 0.0));
-        _viewMatrix = glm::lookAt(glm::vec3(0.0,0.0,4.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        _projectionMatrix = glm::frustum(-1.5f, 1.5f, -1.0f, 1.0f, 1.0f, 100.0f);
+        _viewMatrix = glm::lookAt(glm::vec3(3.0,2.0,5.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        _projectionMatrix = glm::frustum(-1.5f, 1.5f, -1.25f, 1.25f, 1.0f, 100.0f);
         _modelViewMatrix = _viewMatrix * _modelMatrix;
         _normalMatrix = glm::transpose(glm::inverse(glm::mat3(_modelViewMatrix)));
         _MVPMatrix = _projectionMatrix * _modelViewMatrix;
@@ -146,7 +148,7 @@ public:
         _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
 
-        _light.position = glm::vec4(0.0, 0.0, 4.0, 1.0);
+        _light.position = glm::vec4(2.0, 0.0, 4.0, 1.0);
         _light.La = glm::vec3(0.2, 0.2, 0.2);
         _light.Ld = glm::vec3(0.6, 0.6, 0.6);
         _light.Ls = glm::vec3(1.0, 1.0, 1.0);
@@ -200,7 +202,7 @@ public:
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
-        glDrawElements(GL_TRIANGLES, _indexBuffer.currentSize(), GL_UNSIGNED_INT, NULL);
+        glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
     }
 
 private:
@@ -345,6 +347,7 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     
     while (!applicationContext->IsClosing())
     {
+        glClear(GL_DEPTH_BUFFER_BIT);
         renderer->Render(simpleModel);
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
