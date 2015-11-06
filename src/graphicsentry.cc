@@ -148,10 +148,10 @@ public:
         _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
 
-        _light.position = glm::vec4(2.0, 0.0, 4.0, 1.0);
+        _light.position = glm::vec4(-2.0, 0.0, 4.0, 1.0);
         _light.La = glm::vec3(0.2, 0.2, 0.2);
-        _light.Ld = glm::vec3(0.6, 0.6, 0.6);
-        _light.Ls = glm::vec3(1.0, 1.0, 1.0);
+        _light.Ld = glm::vec3(0.2, 0.2, 0.2);
+        _light.Ls = glm::vec3(0.4, 0.4, 0.7);
 
         glm::vec4 viewLightPosition = _modelViewMatrix * _light.position;
 
