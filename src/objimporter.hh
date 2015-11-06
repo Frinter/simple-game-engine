@@ -16,46 +16,14 @@ public:
 
     std::vector<float> GetVertices()
     {
-        std::vector<float> processedVertices;
-        std::vector<ObjParser::Face> faces = _parseResult->GetFaces();
-        std::vector<ObjParser::Vertex> vertices = _parseResult->GetVertices();
-
-        for (int i = 0; i < faces.size(); ++i)
-        {
-            ObjParser::Face face = faces[i];
-            for (int ii = 0; ii < face.vertexIndices.size(); ++ii)
-            {
-                ObjParser::Vertex vertex = vertices[face.vertexIndices[ii]];
-                for (int j = 0; j < 4; ++j)
-                {
-                    processedVertices.push_back(vertex.coordinates[j]);
-                }
-            }
-        }
-
-        return processedVertices;
+        translateAllVertices();
+        return _vertices;
     }
 
     std::vector<float> GetNormals()
     {
-        std::vector<float> processedNormals;
-        std::vector<ObjParser::Face> faces = _parseResult->GetFaces();
-        std::vector<ObjParser::Normal> normals = _parseResult->GetNormals();
-
-        for (int i = 0; i < faces.size(); ++i)
-        {
-            ObjParser::Face face = faces[i];
-            for (int j = 0; j < face.normalIndices.size(); ++j)
-            {
-                ObjParser::Normal normal = normals[face.normalIndices[j]];
-                for (int jj = 0; jj < 3; ++jj)
-                {
-                    processedNormals.push_back(normal.coordinates[jj]);
-                }
-            }
-        }
-
-        return processedNormals;
+        translateAllVertices();
+        return _normals;
     }
 
     std::vector<IndexValue> GetIndices()
@@ -94,7 +62,37 @@ public:
 private:
     ObjParser::IParseResult *_parseResult;
 
+    std::vector<float> _vertices;
+    std::vector<float> _normals;
 private:
+    void translateAllVertices()
+    {
+        _vertices.clear();
+        _normals.clear();
+        std::vector<ObjParser::Face> faces = _parseResult->GetFaces();
+        std::vector<ObjParser::Vertex> vertices = _parseResult->GetVertices();
+        std::vector<ObjParser::Normal> normals = _parseResult->GetNormals();
+
+        for (int i = 0; i < faces.size(); ++i)
+        {
+            ObjParser::Face face = faces[i];
+            for (int ii = 0; ii < face.normalIndices.size(); ++ii)
+            {
+                ObjParser::Normal normal = normals[face.normalIndices[ii]];
+                for (int j = 0; j < 3; ++j)
+                {
+                    _normals.push_back(normal.coordinates[j]);
+                }
+
+                ObjParser::Vertex vertex = vertices[face.vertexIndices[ii]];
+                for (int j = 0; j < 4; ++j)
+                {
+                    _vertices.push_back(vertex.coordinates[j]);
+                }
+            }
+        }
+    }
+
     MaterialInfo translateMaterial(ObjParser::Material *material)
     {
         MaterialInfo info;
