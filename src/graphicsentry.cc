@@ -15,11 +15,13 @@
 #include "framework/platform.hh"
 #include "GL/gl_core_3_3.h"
 #include "model.hh"
+#include "objimporter.hh"
 #include "objparser.hh"
 #include "renderer.hh"
 #include "sleepservice.hh"
 #include "systemtimer.hh"
 #include "ticker.hh"
+#include "types.hh"
 
 using std::string;
 using std::vector;
@@ -27,22 +29,6 @@ using std::unordered_map;
 
 using std::cout;
 using std::endl;
-
-typedef struct LightInfo
-{
-    glm::vec4 position;
-    glm::vec3 La;
-    glm::vec3 Ld;
-    glm::vec3 Ls;
-} LightInfo;
-
-typedef struct MaterialInfo
-{
-    glm::vec3 Ka;
-    glm::vec3 Kd;
-    glm::vec3 Ks;
-    float shininess;
-} MaterialInfo;
 
 template <class T>
 class VertexArrayBuffer
@@ -146,9 +132,10 @@ public:
         glEnableVertexAttribArray(1);
 
         _modelMatrix = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, 0.0));
-        _viewMatrix = glm::lookAt(glm::vec3(2.0,2.0,3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        _projectionMatrix = glm::frustum(-1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 100.0f);
+        _viewMatrix = glm::lookAt(glm::vec3(0.0,0.0,4.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        _projectionMatrix = glm::frustum(-1.5f, 1.5f, -1.0f, 1.0f, 1.0f, 100.0f);
         _modelViewMatrix = _viewMatrix * _modelMatrix;
+        _normalMatrix = glm::transpose(glm::inverse(glm::mat3(_modelViewMatrix)));
         _MVPMatrix = _projectionMatrix * _modelViewMatrix;
 
         _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
@@ -159,15 +146,17 @@ public:
         _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
 
-        _light.position = glm::vec4(0.3, 0.0, 1.0, 1.0);
+        _light.position = glm::vec4(0.0, 0.0, 4.0, 1.0);
         _light.La = glm::vec3(0.2, 0.2, 0.2);
         _light.Ld = glm::vec3(0.6, 0.6, 0.6);
         _light.Ls = glm::vec3(1.0, 1.0, 1.0);
 
-        setUniform("Light.Position", &_light.position);
-        setUniform("Light.La", &_light.La);
-        setUniform("Light.Ld", &_light.Ld);
-        setUniform("Light.Ls", &_light.Ls);
+        glm::vec4 viewLightPosition = _modelViewMatrix * _light.position;
+
+        setUniform("Light.Position", &viewLightPosition);
+        setUniform("Light.La", glm::value_ptr(_light.La));
+        setUniform("Light.Ld", glm::value_ptr(_light.Ld));
+        setUniform("Light.Ls", glm::value_ptr(_light.Ls));
     }
     
     void Use()
@@ -207,7 +196,7 @@ public:
         useMaterial(model.GetMaterialId());
 
         glUniformMatrix4fv(_modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(_modelViewMatrix));
-        glUniformMatrix4fv(_normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(_normalMatrix));
+        glUniformMatrix3fv(_normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(_normalMatrix));
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
@@ -244,9 +233,9 @@ private:
 private:
     void useMaterial(IndexValue index)
     {
-        setUniform("Material.Ka", &_materials[index].Ka);
-        setUniform("Material.Kd", &_materials[index].Kd);
-        setUniform("Material.Ks", &_materials[index].Ks);
+        setUniform("Material.Ka", glm::value_ptr(_materials[index].Ka));
+        setUniform("Material.Kd", glm::value_ptr(_materials[index].Kd));
+        setUniform("Material.Ks", glm::value_ptr(_materials[index].Ks));
         setUniform("Material.Shininess", &_materials[index].shininess);
     }
 
@@ -330,110 +319,6 @@ private:
     }
 };
 
-class ObjImporter
-{
-public:
-    ObjImporter(ObjParser::IParseResult *result)
-        : _parseResult(result)
-    {
-    }
-
-    vector<float> GetVertices()
-    {
-        vector<float> processedVertices;
-        vector<ObjParser::Vertex> vertices = _parseResult->GetVertices();
-
-        for (int i = 0; i < vertices.size(); ++i)
-        {
-            ObjParser::Vertex vertex = vertices[i];
-            for (int j = 0; j < 4; ++j)
-            {
-                processedVertices.push_back(vertex.coordinates[j]);
-            }
-        }
-
-        return processedVertices;
-    }
-
-    vector<float> GetNormals()
-    {
-        vector<float> processedNormals;
-        vector<ObjParser::Face> faces = _parseResult->GetFaces();
-        vector<ObjParser::Normal> normals = _parseResult->GetNormals();
-
-        for (int i = 0; i < faces.size(); ++i)
-        {
-            ObjParser::Face face = faces[i];
-            for (int j = 0; j < face.normalIndices.size(); ++j)
-            {
-                ObjParser::Normal normal = normals[face.normalIndices[j]];
-                for (int jj = 0; jj < 3; ++jj)
-                {
-                    processedNormals.push_back(normal.coordinates[jj]);
-                }
-            }
-        }
-
-        return processedNormals;
-    }
-
-    vector<IndexValue> GetIndices()
-    {
-        vector<IndexValue> processedIndices;
-        vector<ObjParser::Face> faces = _parseResult->GetFaces();
-
-        for (int i = 0; i < faces.size(); ++i)
-        {
-            ObjParser::Face face = faces[i];
-            for (int j = 0; j < 3; ++j)
-            {
-                processedIndices.push_back(face.vertexIndices[j]);
-            }
-        }
-        cout << processedIndices.size() << endl;
-        return processedIndices;
-    }
-
-    MaterialInfo GetMaterial(const char *name)
-    {
-        vector<ObjParser::Material*> materials = _parseResult->GetMaterials();
-        ObjParser::Material *material = NULL;
-
-        for (int i = 0; i < materials.size(); ++i)
-        {
-            if (materials[i]->name == name)
-            {
-                return translateMaterial(materials[i]);
-            }
-        }
-
-        std::stringstream errorStream;
-        errorStream << "Runtime error: unable to find material in parse result: " << name;
-        throw std::runtime_error(errorStream.str());
-    }
-
-private:
-    ObjParser::IParseResult *_parseResult;
-
-private:
-    MaterialInfo translateMaterial(ObjParser::Material *material)
-    {
-        MaterialInfo info;
-
-        info.Ka = translateColor(material->ambientColor);
-        info.Kd = translateColor(material->diffuseColor);
-        info.Ks = translateColor(material->specularColor);
-        info.shininess = 0.5;
-
-        return info;
-    }
-
-    glm::vec3 translateColor(ObjParser::ColorValue color)
-    {
-        return glm::vec3(color.red, color.green, color.blue);
-    }
-};
-
 GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
 {
     windowController->CreateContext();
@@ -443,7 +328,7 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     Ticker ticker = Ticker(&systemTimer, &sleepService);
 
     // Load 3d assets
-    ObjParser::ObjFileParser parser("assets/", "simple.obj");
+    ObjParser::ObjFileParser parser("assets/", "sphere.obj");
     ObjParser::IParseResult *parseResult = parser.Parse();
     ObjImporter importer(parseResult);
     
@@ -451,7 +336,7 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     IndexValue vertexCollectionId = adsRenderer->RegisterVertexCollection(importer.GetVertices());
     IndexValue normalCollectionId = adsRenderer->RegisterNormalCollection(importer.GetNormals());
     IndexValue vertexIndicesId = adsRenderer->RegisterIndexCollection(importer.GetIndices());
-    IndexValue materialId = adsRenderer->RegisterMaterial(importer.GetMaterial("Red"));
+    IndexValue materialId = adsRenderer->RegisterMaterial(importer.GetMaterial("None"));
     Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId, materialId);
 
     IRenderer *renderer = (IRenderer *)adsRenderer;
