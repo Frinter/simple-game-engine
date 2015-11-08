@@ -3,6 +3,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 
+#include "GL/gl_core_3_3.h"
 #include "objparser.hh"
 #include "types.hh"
 
@@ -26,6 +27,17 @@ public:
         return _normals;
     }
 
+    std::vector<float> GetUVCoords()
+    {
+        translateAllVertices();
+        return _uvCoords;
+    }
+
+    GLenum GetPrimitive()
+    {
+        return GL_TRIANGLES;
+    }
+
     std::vector<IndexValue> GetIndices()
     {
         std::vector<IndexValue> processedIndices;
@@ -33,37 +45,30 @@ public:
 
         for (int i = 0; i < faces.size(); ++i)
         {
-            for (int j = 0; j < 3; ++j)
+            ObjParser::Face face = faces[i];
+
+            for (int j = 0; j < face.vertexIndices.size(); ++j)
             {
-                processedIndices.push_back(3*i + j);
+                if (j >= 3)
+                {
+                    processedIndices.push_back(face.vertexIndices.size()*i + j - 3);
+                    processedIndices.push_back(face.vertexIndices.size()*i + j - 1);
+                }
+                processedIndices.push_back(face.vertexIndices.size()*i + j);
             }
         }
         return processedIndices;
     }
 
-    MaterialInfo GetMaterial(const char *name)
-    {
-        std::vector<ObjParser::Material*> materials = _parseResult->GetMaterials();
-        ObjParser::Material *material = NULL;
-
-        for (int i = 0; i < materials.size(); ++i)
-        {
-            if (materials[i]->name == name)
-            {
-                return translateMaterial(materials[i]);
-            }
-        }
-
-        std::stringstream errorStream;
-        errorStream << "Runtime error: unable to find material in parse result: " << name;
-        throw std::runtime_error(errorStream.str());
-    }
+    MaterialInfo GetMaterial(const char *name);
 
 private:
     ObjParser::IParseResult *_parseResult;
 
     std::vector<float> _vertices;
     std::vector<float> _normals;
+    std::vector<float> _uvCoords;
+
 private:
     void translateAllVertices()
     {
@@ -72,38 +77,53 @@ private:
         std::vector<ObjParser::Face> faces = _parseResult->GetFaces();
         std::vector<ObjParser::Vertex> vertices = _parseResult->GetVertices();
         std::vector<ObjParser::Normal> normals = _parseResult->GetNormals();
+        std::vector<ObjParser::UVCoord> uvCoords = _parseResult->GetUVCoords();
 
         for (int i = 0; i < faces.size(); ++i)
         {
             ObjParser::Face face = faces[i];
-            for (int ii = 0; ii < face.normalIndices.size(); ++ii)
+            for (int j = 0; j < face.normalIndices.size(); ++j)
             {
-                ObjParser::Normal normal = normals[face.normalIndices[ii]];
-                for (int j = 0; j < 3; ++j)
+                if (j >= 3)
                 {
-                    _normals.push_back(normal.coordinates[j]);
+                    addUVCoord(uvCoords[face.UVIndices[j-3]]);
+                    addNormal(normals[face.normalIndices[j-3]]);
+                    addVertex(vertices[face.vertexIndices[j-3]]);
+                    addUVCoord(uvCoords[face.UVIndices[j-1]]);
+                    addNormal(normals[face.normalIndices[j-1]]);
+                    addVertex(vertices[face.vertexIndices[j-1]]);
                 }
 
-                ObjParser::Vertex vertex = vertices[face.vertexIndices[ii]];
-                for (int j = 0; j < 4; ++j)
-                {
-                    _vertices.push_back(vertex.coordinates[j]);
-                }
+                addUVCoord(uvCoords[face.UVIndices[j]]);
+                addNormal(normals[face.normalIndices[j]]);
+                addVertex(vertices[face.vertexIndices[j]]);
             }
         }
     }
 
-    MaterialInfo translateMaterial(ObjParser::Material *material)
+    void addUVCoord(ObjParser::UVCoord uvCoord)
     {
-        MaterialInfo info;
-
-        info.Ka = translateColor(material->ambientColor);
-        info.Kd = translateColor(material->diffuseColor);
-        info.Ks = translateColor(material->specularColor);
-        info.shininess = 0.5;
-
-        return info;
+        _uvCoords.push_back(uvCoord.coordinates[0]);
+        _uvCoords.push_back(uvCoord.coordinates[1]);
     }
+
+    void addVertex(ObjParser::Vertex vertex)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            _vertices.push_back(vertex.coordinates[i]);
+        }
+    }
+
+    void addNormal(ObjParser::Normal normal)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            _normals.push_back(normal.coordinates[i]);
+        }
+    }
+
+    MaterialInfo translateMaterial(ObjParser::Material *material);
 
     glm::vec3 translateColor(ObjParser::ColorValue color)
     {

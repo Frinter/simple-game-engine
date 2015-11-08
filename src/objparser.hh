@@ -12,6 +12,7 @@ namespace ObjParser
     public:
         virtual std::vector<Vertex> GetVertices() const = 0;
         virtual std::vector<Normal> GetNormals() const = 0;
+        virtual std::vector<UVCoord> GetUVCoords() const = 0;
         virtual std::vector<IndexValue> GetIndices() const = 0;
         virtual std::vector<Face> GetFaces() const = 0;
         virtual std::vector<Material*> GetMaterials() const = 0;

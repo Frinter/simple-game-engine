@@ -15,6 +15,8 @@ namespace ObjParser
         ColorValue ambientColor;
         ColorValue diffuseColor;
         ColorValue specularColor;
+        float specularExponent;
+        std::string diffuseMap;
     } Material;
 
     typedef struct Vertex
@@ -27,10 +29,16 @@ namespace ObjParser
         float coordinates[3];
     } Normal;
 
+    typedef struct UVCoord
+    {
+        float coordinates[2];
+    } UVCoords;
+
     typedef struct Face
     {
         std::vector<IndexValue> vertexIndices;
         std::vector<IndexValue> normalIndices;
+        std::vector<IndexValue> UVIndices;
         Material *material;
     } Face;
 }

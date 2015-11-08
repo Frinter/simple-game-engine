@@ -32,8 +32,14 @@ private:
         Float,
         AmbientColor,
         DiffuseColor,
+        DiffuseMap,
+        DissolveFactor,
+        IlluminationModel,
+        OpticalDensity,
         SpecularColor,
+        SpecularExponent,
         LineEnd,
+        FileName,
         Identifier,
         Integer,
         MaterialName,
@@ -52,10 +58,22 @@ private:
             return "AmbientColor";
         case Token::DiffuseColor:
             return "DiffuseColor";
+        case Token::DiffuseMap:
+            return "DiffuseMap";
+        case Token::DissolveFactor:
+            return "DissolveFactor";
+        case Token::IlluminationModel:
+            return "IlluminationModel";
+        case Token::OpticalDensity:
+            return "OpticalDensity";
         case Token::SpecularColor:
             return "SpecularColor";
+        case Token::SpecularExponent:
+            return "SpecularExponent";
         case Token::LineEnd:
             return "LineEnd";
+        case Token::FileName:
+            return "FileName";
         case Token::Identifier:
             return "Identifier";
         case Token::Integer:
@@ -121,7 +139,7 @@ private:
         }
     
     private:
-        const char *_fileName;
+        string _fileName;
         ifstream _fileStream;
         Token _currentToken;
         unsigned int _line;
@@ -196,9 +214,39 @@ private:
                     return;
                 }
 
+                if (checkForString("map_Kd"))
+                {
+                    _currentToken = Token::DiffuseMap;
+                    return;
+                }
+
                 if (checkForString("Ks"))
                 {
                     _currentToken = Token::SpecularColor;
+                    return;
+                }
+
+                if (checkForString("Ns"))
+                {
+                    _currentToken = Token::SpecularExponent;
+                    return;
+                }
+
+                if (checkForString("Ni"))
+                {
+                    _currentToken = Token::OpticalDensity;
+                    return;
+                }
+
+                if (checkForString("d"))
+                {
+                    _currentToken = Token::DissolveFactor;
+                    return;
+                }
+
+                if (checkForString("illum"))
+                {
+                    _currentToken = Token::IlluminationModel;
                     return;
                 }
             }
@@ -222,10 +270,21 @@ private:
                 if (isalnum(input))
                 {
                     _currentToken = Token::Identifier;
-                    while (isalnum(input))
+                    while (isalnum(input) || input == '.' || input == '-' || input == '_')
                     {
                         _tokenBuffer.push_back(input);
                         input = _fileStream.get();
+                    }
+
+                    if (input == '\\' || input == ':')
+                    {
+                        _currentToken = Token::FileName;
+
+                        do 
+                        {
+                            _tokenBuffer.push_back(input);
+                            input = _fileStream.get();
+                        } while (isalnum(input) || input == '.' || input == '-' || input == '_' || input == '\\');
                     }
 
                     _fileStream.unget();
@@ -326,6 +385,33 @@ private:
             MatchValue();
 
             _currentMaterial->specularColor = color;
+        }
+        else if (_scanner->GetCurrentToken() == Token::OpticalDensity)
+        {
+            _scanner->MatchToken(Token::OpticalDensity);
+            MatchValue();
+        }
+        else if (_scanner->GetCurrentToken() == Token::DissolveFactor)
+        {
+            _scanner->MatchToken(Token::DissolveFactor);
+            MatchValue();
+        }
+        else if (_scanner->GetCurrentToken() == Token::IlluminationModel)
+        {
+            _scanner->MatchToken(Token::IlluminationModel);
+            _scanner->MatchToken(Token::Integer);
+        }
+        else if (_scanner->GetCurrentToken() == Token::DiffuseMap)
+        {
+            _scanner->MatchToken(Token::DiffuseMap);
+            _currentMaterial->diffuseMap = _scanner->GetTokenBuffer();
+            _scanner->MatchToken(Token::FileName);
+        }
+        else if (_scanner->GetCurrentToken() == Token::SpecularExponent)
+        {
+            _scanner->MatchToken(Token::SpecularExponent);
+            _currentMaterial->specularExponent = atof(_scanner->GetTokenBuffer().c_str());
+            MatchValue();
         }
 
         _scanner->MatchToken(Token::LineEnd);

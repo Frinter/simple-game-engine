@@ -44,9 +44,11 @@ enum class Token
     GEOMETRIC_VERTEX_INDICATOR,
     VERTEX_TEXTURE_INDICATOR,
     VERTEX_NORMAL_INDICATOR,
+    OBJECT_NAME_INDICATOR,
     POLYGON_FACE_INDICATOR,
     MATERIAL_LIBRARY_INDICATOR,
     GROUP_INDICATOR,
+    SMOOTHING_GROUP,
     MATERIAL_NAME,
     IDENTIFIER,
     NEWLINE,
@@ -74,10 +76,14 @@ std::string GetStringForToken(Token token)
         return "VERTEX_NORMAL_INDICATOR";
     case Token::GROUP_INDICATOR:
         return "GROUP_INDICATOR";
+    case Token::SMOOTHING_GROUP:
+        return "SMOOTHING_GROUP";
     case Token::MATERIAL_NAME:
         return "MATERIAL_NAME";
     case Token::MATERIAL_LIBRARY_INDICATOR:
         return "MATERIAL_LIBRARY_INDICATOR";
+    case Token::OBJECT_NAME_INDICATOR:
+        return "OBJECT_NAME_INDICATOR";
     case Token::POLYGON_FACE_INDICATOR:
         return "POLYGON_FACE_INDICATOR";
     case Token::IDENTIFIER:
@@ -249,7 +255,18 @@ public:
                 }
                 _fileStream.get();
             }
+
+            if (input == 'o' && nextInput == ' ')
+            {
+                _currentToken = Token::OBJECT_NAME_INDICATOR;
+                return;
+            }
             
+            if (input == 's' && nextInput == ' ')
+            {
+                _currentToken = Token::SMOOTHING_GROUP;
+                return;
+            }
         }
         else // !isLineStart
         {
@@ -276,22 +293,24 @@ public:
 
             if (isalnum(input))
             {
-                _currentToken = Token::IDENTIFIER;
-                while (isalnum(input))
-                {
-                    _tokenBuffer.push_back(input);
-                    input = _fileStream.get();
-                }
-
-                if (input == '.')
+                if (_currentToken == Token::MATERIAL_LIBRARY_INDICATOR)
                 {
                     _currentToken = Token::FILENAME;
 
-                    do 
+                    while (isalnum(input) || input == '-' || input == '_' || input == ':' || input == '.')
                     {
                         _tokenBuffer.push_back(input);
                         input = _fileStream.get();
-                    } while (isalnum(input));
+                    }
+                }
+                else
+                {
+                    _currentToken = Token::IDENTIFIER;
+                    while (isalnum(input) || input == '-' || input == '_' || input == '.')
+                    {
+                        _tokenBuffer.push_back(input);
+                        input = _fileStream.get();
+                    }
                 }
 
                 _fileStream.unget();
@@ -301,6 +320,7 @@ public:
         
         std::stringstream errorStream;
         errorStream << "Obj scanning error: file: " << _fileName << " line: " << _line << std::endl;
+        errorStream << " char: " << input << std::endl;
         throw std::runtime_error(errorStream.str());
     }
 
@@ -342,6 +362,11 @@ public:
         return _normals;
     }
 
+    std::vector<UVCoord> GetUVCoords() const
+    {
+        return _uvCoords;
+    }
+
     std::vector<IndexValue> GetIndices() const
     {
         return _indices;
@@ -359,6 +384,7 @@ public:
 
     std::vector<Vertex> _vertices;
     std::vector<Normal> _normals;
+    std::vector<UVCoord> _uvCoords;
     std::vector<IndexValue> _indices;
     std::vector<Face> _faces;
     std::vector<Material*> _materials;
@@ -483,14 +509,45 @@ void ObjFileParserImplementation::MatchLine()
     }
     else if (_scanner->GetCurrentToken() == Token::VERTEX_TEXTURE_INDICATOR)
     {
+        UVCoord uvCoord;
         _scanner->MatchToken(Token::VERTEX_TEXTURE_INDICATOR);
+        uvCoord.coordinates[0] = atof(_scanner->GetTokenBuffer().c_str());
         MatchValue();
+        uvCoord.coordinates[1] = atof(_scanner->GetTokenBuffer().c_str());
         MatchValue();
-        MatchValue();
+
+        _result->_uvCoords.push_back(uvCoord);
     }
     else if (_scanner->GetCurrentToken() == Token::GROUP_INDICATOR)
     {
         _scanner->MatchToken(Token::GROUP_INDICATOR);
+
+        while (_scanner->GetCurrentToken() == Token::IDENTIFIER)
+        {
+            _scanner->MatchToken(Token::IDENTIFIER);
+        }
+    }
+    else if (_scanner->GetCurrentToken() == Token::SMOOTHING_GROUP)
+    {
+        _scanner->MatchToken(Token::SMOOTHING_GROUP);
+
+        if (_scanner->GetCurrentToken() == Token::IDENTIFIER)
+        {
+            if (_scanner->GetTokenBuffer() == "off")
+            {
+                _scanner->MatchToken(Token::IDENTIFIER);
+            }
+            else
+            {
+                std::stringstream errorStream;
+                errorStream << "Obj parse error: Expected \"off\": " << _fileName << " line: " << _scanner->GetLine();
+                throw std::runtime_error(errorStream.str());
+            }
+        }
+    }
+    else if (_scanner->GetCurrentToken() == Token::OBJECT_NAME_INDICATOR)
+    {
+        _scanner->MatchToken(Token::OBJECT_NAME_INDICATOR);
 
         while (_scanner->GetCurrentToken() == Token::IDENTIFIER)
         {
@@ -514,9 +571,11 @@ void ObjFileParserImplementation::MatchLine()
 
                 if (_scanner->GetCurrentToken() == Token::INT_LITERAL)
                 {
+                    face.UVIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()) - 1);
                     _scanner->MatchToken(Token::INT_LITERAL);
                 }
-                else if (_scanner->GetCurrentToken() == Token::INDEX_SEPARATOR)
+
+                if (_scanner->GetCurrentToken() == Token::INDEX_SEPARATOR)
                 {
                     _scanner->MatchToken(Token::INDEX_SEPARATOR);
                     face.normalIndices.push_back(atoi(_scanner->GetTokenBuffer().c_str()) - 1);

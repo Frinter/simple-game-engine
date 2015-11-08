@@ -109,7 +109,9 @@ class ADSRenderer : public IRenderer
 {
 public:
     ADSRenderer()
-        : _indexBuffer(GL_ELEMENT_ARRAY_BUFFER), _positionBuffer(GL_ARRAY_BUFFER), _normalBuffer(GL_ARRAY_BUFFER)
+        : _indexBuffer(GL_ELEMENT_ARRAY_BUFFER),
+          _positionBuffer(GL_ARRAY_BUFFER), _normalBuffer(GL_ARRAY_BUFFER),
+          _uvBuffer(GL_ARRAY_BUFFER)
     {
         _vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/ads.vert");
         _fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/ads.frag");
@@ -123,6 +125,7 @@ public:
 
         glBindAttribLocation(_shaderProgramHandle, 0, "VertexPosition");
         glBindAttribLocation(_shaderProgramHandle, 1, "VertexNormal");
+        glBindAttribLocation(_shaderProgramHandle, 2, "VertexTexCoord");
 
         glLinkProgram(_shaderProgramHandle);
 
@@ -132,9 +135,10 @@ public:
         glBindVertexArray(_vaoHandle);
         glEnableVertexAttribArray(0);
         glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
 
         _modelMatrix = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, 0.0));
-        _viewMatrix = glm::lookAt(glm::vec3(3.0,2.0,5.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        _viewMatrix = glm::lookAt(glm::vec3(-2.0,3.0,3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
         _projectionMatrix = glm::frustum(-1.5f, 1.5f, -1.25f, 1.25f, 1.0f, 100.0f);
         _modelViewMatrix = _viewMatrix * _modelMatrix;
         _normalMatrix = glm::transpose(glm::inverse(glm::mat3(_modelViewMatrix)));
@@ -142,15 +146,16 @@ public:
 
         _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
         _normalBuffer.SetUp(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+        _uvBuffer.SetUp(2, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
 
         _modelViewMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ModelViewMatrix");
         _normalMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "NormalMatrix");
         _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
 
-        _light.position = glm::vec4(-2.0, 0.0, 4.0, 1.0);
-        _light.La = glm::vec3(0.2, 0.2, 0.2);
-        _light.Ld = glm::vec3(0.2, 0.2, 0.2);
+        _light.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
+        _light.La = glm::vec3(0.0, 0.0, 0.0);
+        _light.Ld = glm::vec3(1.0, 1.0, 1.0);
         _light.Ls = glm::vec3(0.4, 0.4, 0.7);
 
         glm::vec4 viewLightPosition = _modelViewMatrix * _light.position;
@@ -166,8 +171,9 @@ public:
         glUseProgram(_shaderProgramHandle);
     }
 
-    IndexValue RegisterIndexCollection(vector<IndexValue> indices)
+    IndexValue RegisterIndexCollection(vector<IndexValue> indices, GLenum primitiveType)
     {
+        _primitiveTypes.push_back(primitiveType);
         return _indexBuffer.RegisterDataCollection(indices);
     }
     
@@ -181,9 +187,19 @@ public:
         return _normalBuffer.RegisterDataCollection(normals);
     }
 
+    IndexValue RegisterUVCollection(vector<float> uvCoords)
+    {
+        return _uvBuffer.RegisterDataCollection(uvCoords);
+    }
+
     IndexValue RegisterMaterial(MaterialInfo material)
     {
         IndexValue index = _materials.size();
+        if (material.Kd_imageInfo != NULL)
+        {
+            material.Kd_mapId = registerTexture(material.Kd_imageInfo);
+        }
+
         _materials.push_back(material);
         return index;
     }
@@ -195,6 +211,7 @@ public:
         _indexBuffer.UseDataCollection(model.GetVertexIndicesId());
         _positionBuffer.UseDataCollection(model.GetVertexPositionsId());
         _normalBuffer.UseDataCollection(model.GetVertexNormalsId());
+        _uvBuffer.UseDataCollection(model.GetUVCoordsId());
         useMaterial(model.GetMaterialId());
 
         glUniformMatrix4fv(_modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(_modelViewMatrix));
@@ -202,15 +219,17 @@ public:
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
-        glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
+        glDrawArrays(_primitiveTypes[model.GetVertexIndicesId()], 0, _indexBuffer.currentSize());
     }
 
 private:
     LightInfo _light;
     
+    vector<GLenum> _primitiveTypes;
     VertexArrayBuffer<IndexValue> _indexBuffer;
     VertexArrayBuffer<float> _positionBuffer;
     VertexArrayBuffer<float> _normalBuffer;
+    VertexArrayBuffer<float> _uvBuffer;
 
     vector<MaterialInfo> _materials;
     
@@ -233,12 +252,36 @@ private:
     glm::mat3 _normalMatrix;
     
 private:
+    GLuint registerTexture(RawImageInfo *imageInfo)
+    {
+        GLuint textureId;
+        glGenTextures(1, &textureId);
+        glBindTexture(GL_TEXTURE_2D, textureId);
+        glTexImage2D(GL_TEXTURE_2D, 0, imageInfo->components,
+                     imageInfo->width, imageInfo->height, 0,
+                     imageInfo->components, GL_UNSIGNED_BYTE, imageInfo->data);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+        return textureId;
+    }
+
     void useMaterial(IndexValue index)
     {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, _materials[index].Kd_mapId);
+
         setUniform("Material.Ka", glm::value_ptr(_materials[index].Ka));
         setUniform("Material.Kd", glm::value_ptr(_materials[index].Kd));
         setUniform("Material.Ks", glm::value_ptr(_materials[index].Ks));
         setUniform("Material.Shininess", &_materials[index].shininess);
+        setUniform("Material.Kd_map", 0);
+    }
+
+    void setUniform(const char *uniformName, const int info)
+    {
+        GLuint uniformLocation = glGetUniformLocation(_shaderProgramHandle, uniformName);
+        glUniform1i(uniformLocation, info);
     }
 
     void setUniform(const char *uniformName, const float *info)
@@ -330,21 +373,24 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     Ticker ticker = Ticker(&systemTimer, &sleepService);
 
     // Load 3d assets
-    ObjParser::ObjFileParser parser("assets/", "sphere.obj");
+    ObjParser::ObjFileParser parser("assets/", "textured-box.obj");
     ObjParser::IParseResult *parseResult = parser.Parse();
     ObjImporter importer(parseResult);
-    
+
     ADSRenderer *adsRenderer = new ADSRenderer();
     IndexValue vertexCollectionId = adsRenderer->RegisterVertexCollection(importer.GetVertices());
     IndexValue normalCollectionId = adsRenderer->RegisterNormalCollection(importer.GetNormals());
-    IndexValue vertexIndicesId = adsRenderer->RegisterIndexCollection(importer.GetIndices());
-    IndexValue materialId = adsRenderer->RegisterMaterial(importer.GetMaterial("None"));
-    Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId, materialId);
+
+    IndexValue uvCollectionId = adsRenderer->RegisterUVCollection(importer.GetUVCoords());
+    IndexValue vertexIndicesId = adsRenderer->RegisterIndexCollection(importer.GetIndices(), importer.GetPrimitive());
+    IndexValue materialId = adsRenderer->RegisterMaterial(importer.GetMaterial("Material.002"));
+    Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId,
+                      materialId, uvCollectionId);
 
     IRenderer *renderer = (IRenderer *)adsRenderer;
 
     ticker.Start(17);
-    
+
     while (!applicationContext->IsClosing())
     {
         glClear(GL_DEPTH_BUFFER_BIT);
