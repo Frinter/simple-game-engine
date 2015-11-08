@@ -137,12 +137,7 @@ public:
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
 
-        _modelMatrix = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, 0.0));
-        _viewMatrix = glm::lookAt(glm::vec3(-2.0,3.0,3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        _projectionMatrix = glm::frustum(-1.5f, 1.5f, -1.25f, 1.25f, 1.0f, 100.0f);
-        _modelViewMatrix = _viewMatrix * _modelMatrix;
-        _normalMatrix = glm::transpose(glm::inverse(glm::mat3(_modelViewMatrix)));
-        _MVPMatrix = _projectionMatrix * _modelViewMatrix;
+        _projectionMatrix = glm::perspective(45.0f, 4.0f/3.0f, 1.0f, 100.0f);
 
         _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
         _normalBuffer.SetUp(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
@@ -152,18 +147,6 @@ public:
         _normalMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "NormalMatrix");
         _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
         _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
-
-        _light.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
-        _light.La = glm::vec3(0.0, 0.0, 0.0);
-        _light.Ld = glm::vec3(1.0, 1.0, 1.0);
-        _light.Ls = glm::vec3(0.4, 0.4, 0.7);
-
-        glm::vec4 viewLightPosition = _modelViewMatrix * _light.position;
-
-        setUniform("Light.Position", &viewLightPosition);
-        setUniform("Light.La", glm::value_ptr(_light.La));
-        setUniform("Light.Ld", glm::value_ptr(_light.Ld));
-        setUniform("Light.Ls", glm::value_ptr(_light.Ls));
     }
     
     void Use()
@@ -202,6 +185,39 @@ public:
 
         _materials.push_back(material);
         return index;
+    }
+
+    void SetModelMatrix(glm::mat4 matrix)
+    {
+        _modelMatrix = matrix;
+
+        _modelViewMatrix = _viewMatrix * _modelMatrix;
+        _normalMatrix = glm::transpose(glm::inverse(glm::mat3(_modelViewMatrix)));
+        _MVPMatrix = _projectionMatrix * _modelViewMatrix;
+    }
+
+    void SetViewMatrix(glm::mat4 matrix)
+    {
+        _viewMatrix = matrix;
+
+        _modelViewMatrix = _viewMatrix * _modelMatrix;
+        _normalMatrix = glm::transpose(glm::inverse(glm::mat3(_modelViewMatrix)));
+        _MVPMatrix = _projectionMatrix * _modelViewMatrix;
+    }
+
+    void SetLight(LightInfo info)
+    {
+        _light.position = info.position;
+        _light.La = info.La;
+        _light.Ld = info.Ld;
+        _light.Ls = info.Ls;
+
+        glm::vec4 viewLightPosition = _modelViewMatrix * _light.position;
+
+        setUniform("Light.Position", &viewLightPosition);
+        setUniform("Light.La", glm::value_ptr(_light.La));
+        setUniform("Light.Ld", glm::value_ptr(_light.Ld));
+        setUniform("Light.Ls", glm::value_ptr(_light.Ls));
     }
 
     void Render(const Model &model)
@@ -338,7 +354,7 @@ private:
             cout << GetShaderLog(handle) << endl;
             exit(1);
         }
-	
+
         return handle;
     }
 
@@ -386,6 +402,18 @@ GraphicsThreadEntry_FunctionSignature(GraphicsThreadEntry)
     IndexValue materialId = adsRenderer->RegisterMaterial(importer.GetMaterial("Material.002"));
     Model simpleModel(vertexCollectionId, normalCollectionId, vertexIndicesId,
                       materialId, uvCollectionId);
+
+    adsRenderer->SetModelMatrix(glm::translate(glm::mat4(1.0),
+                                               glm::vec3(0.0, 0.0, 0.0)));
+    adsRenderer->SetViewMatrix(glm::lookAt(glm::vec3(-2.0, 3.0, 3.0),
+                                           glm::vec3( 0.0, 0.0, 0.0),
+                                           glm::vec3( 0.0, 1.0, 0.0)));
+    LightInfo lightInfo;
+    lightInfo.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
+    lightInfo.La = glm::vec3(0.0, 0.0, 0.0);
+    lightInfo.Ld = glm::vec3(1.0, 1.0, 1.0);
+    lightInfo.Ls = glm::vec3(0.4, 0.4, 0.7);
+    adsRenderer->SetLight(lightInfo);
 
     IRenderer *renderer = (IRenderer *)adsRenderer;
 
