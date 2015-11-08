@@ -4,7 +4,7 @@ SRC := $(foreach dir,$(SUB_DIRS),$(wildcard $(dir)/*.cc))
 OBJ := $(patsubst src/%.cc,build/%.o,$(SRC))
 MAINS := $(wildcard src/*entry.cc)
 MAIN_OBJ := $(patsubst src/%.cc,build/%.o,$(MAINS))
-LIBS := -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++
+LIBS := -Llib -lmingw32 lib/platform.MINGW.64.a -ljpeg -lopengl32 -lgdi32 -lwinmm -static -lstdc++
 
 TEST_SUB_DIRS := $(shell find tests -type d -print)
 TEST_OBJ_DIRS := $(foreach dir,$(TEST_SUB_DIRS),$(patsubst tests%,test-build%,$(dir)))
@@ -16,7 +16,7 @@ TEST_OBJ := $(patsubst tests/%.cc,test-build/%.o,$(TEST_SRC))
 .DEFAULT_GOAL := debug
 
 debug: bin/debug-build.exe
-release: bin/bandit-camp.exe
+release: bin/rendering-engine.exe
 test: tests-run
 	@rm bin/tests.exe
 
@@ -27,7 +27,7 @@ tests-run: bin/tests.exe
 bin/debug-build.exe: $(OBJ)
 	clang++ -o $@ -Iinclude -std=c++11 $^ $(LIBS)
 
-bin/bandit-camp.exe: $(OBJ)
+bin/rendering-engine.exe: $(OBJ)
 	clang++ -o $@ -Iinclude -std=c++11 $^ $(LIBS) -Wl,-subsystem,windows
 
 $(OBJ_DIRS) $(TEST_OBJ_DIRS):

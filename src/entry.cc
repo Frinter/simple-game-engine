@@ -2,7 +2,7 @@
 #include "ticker.hh"
 
 static Framework::ApplicationState applicationState = {
-    .windowName = "Bandit Camp"
+    .windowName = "Rendering Engine"
 };
 
 GetApplicationState_FunctionSignature(GetApplicationState)
