@@ -4,6 +4,7 @@ SRC := $(foreach dir,$(SUB_DIRS),$(wildcard $(dir)/*.cc))
 OBJ := $(patsubst src/%.cc,build/%.o,$(SRC))
 MAINS := $(wildcard src/*entry.cc)
 MAIN_OBJ := $(patsubst src/%.cc,build/%.o,$(MAINS))
+LIBS := -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++
 
 TEST_SUB_DIRS := $(shell find tests -type d -print)
 TEST_OBJ_DIRS := $(foreach dir,$(TEST_SUB_DIRS),$(patsubst tests%,test-build%,$(dir)))
@@ -24,10 +25,10 @@ tests-run: bin/tests.exe
 	@$< #-d yes
 
 bin/debug-build.exe: $(OBJ)
-	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++
+	clang++ -o $@ -Iinclude -std=c++11 $^ $(LIBS)
 
 bin/bandit-camp.exe: $(OBJ)
-	clang++ -o $@ -Iinclude -std=c++11 $^ -lmingw32 lib/platform.MINGW.64.a -lopengl32 -lgdi32 -lwinmm -static -lstdc++ -Wl,-subsystem,windows
+	clang++ -o $@ -Iinclude -std=c++11 $^ $(LIBS) -Wl,-subsystem,windows
 
 $(OBJ_DIRS) $(TEST_OBJ_DIRS):
 	@mkdir -p $@
