@@ -9,15 +9,23 @@
 class ADSRenderer : public IRenderer
 {
 public:
+    class Importer
+    {
+    public:
+        virtual ~Importer() {}
+        virtual std::vector<float> GetVertices() = 0;
+        virtual std::vector<float> GetNormals() = 0;
+        virtual std::vector<float> GetUVCoords() = 0;
+        virtual std::vector<IndexValue> GetIndices() = 0;
+        virtual MaterialInfo GetMaterial(const char *name) = 0;
+    };
+
+public:
     ADSRenderer();
     ~ADSRenderer();
     
     void Use();
-    IndexValue RegisterIndexCollection(std::vector<IndexValue> indices, GLenum primitiveType);
-    IndexValue RegisterVertexCollection(std::vector<float> vertices);
-    IndexValue RegisterNormalCollection(std::vector<float> normals);
-    IndexValue RegisterUVCollection(std::vector<float> uvCoords);
-    IndexValue RegisterMaterial(MaterialInfo material);
+    Model CreateModelFromImporter(Importer &importer);
     void SetModelMatrix(glm::mat4 matrix);
     void SetViewMatrix(glm::mat4 matrix);
     void SetLight(LightInfo info);
@@ -30,16 +38,12 @@ public:
     public:
         virtual ~IADSRendererImplementation() {}
         virtual void Use() = 0;
-        virtual IndexValue RegisterIndexCollection(std::vector<IndexValue> indices, GLenum primitiveType) = 0;
-        virtual IndexValue RegisterVertexCollection(std::vector<float> vertices) = 0;
-        virtual IndexValue RegisterNormalCollection(std::vector<float> normals) = 0;
-        virtual IndexValue RegisterUVCollection(std::vector<float> uvCoords) = 0;
-        virtual IndexValue RegisterMaterial(MaterialInfo material) = 0;
+        virtual Model CreateModelFromImporter(Importer &importer) = 0;
         virtual void SetModelMatrix(glm::mat4 matrix) = 0;
         virtual void SetViewMatrix(glm::mat4 matrix) = 0;
         virtual void SetLight(LightInfo info) = 0;
         virtual void Render(const Model &model) = 0;
-    };    
+    };
 
 private:
     IADSRendererImplementation *_implementation;

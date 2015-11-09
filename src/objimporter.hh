@@ -4,10 +4,12 @@
 #include <glm/glm.hpp>
 
 #include "GL/gl_core_3_3.h"
+
+#include "adsrenderer.hh"
 #include "objparser.hh"
 #include "types.hh"
 
-class ObjImporter
+class ObjImporter : public ADSRenderer::Importer
 {
 public:
     ObjImporter(ObjParser::IParseResult *result)
@@ -31,11 +33,6 @@ public:
     {
         translateAllVertices();
         return _uvCoords;
-    }
-
-    GLenum GetPrimitive()
-    {
-        return GL_TRIANGLES;
     }
 
     std::vector<IndexValue> GetIndices()

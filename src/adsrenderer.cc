@@ -140,27 +140,8 @@ public:
         glUseProgram(_shaderProgramHandle);
     }
 
-    IndexValue RegisterIndexCollection(vector<IndexValue> indices, GLenum primitiveType)
-    {
-        _primitiveTypes.push_back(primitiveType);
-        return _indexBuffer.RegisterDataCollection(indices);
-    }
+    Model CreateModelFromImporter(ADSRenderer::Importer &importer);
     
-    IndexValue RegisterVertexCollection(vector<float> vertices)
-    {
-        return _positionBuffer.RegisterDataCollection(vertices);
-    }
-    
-    IndexValue RegisterNormalCollection(vector<float> normals)
-    {
-        return _normalBuffer.RegisterDataCollection(normals);
-    }
-
-    IndexValue RegisterUVCollection(vector<float> uvCoords)
-    {
-        return _uvBuffer.RegisterDataCollection(uvCoords);
-    }
-
     IndexValue RegisterMaterial(MaterialInfo material)
     {
         IndexValue index = _materials.size();
@@ -221,13 +202,12 @@ public:
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
-        glDrawArrays(_primitiveTypes[model.GetVertexIndicesId()], 0, _indexBuffer.currentSize());
+        glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
     }
 
 private:
     LightInfo _light;
     
-    vector<GLenum> _primitiveTypes;
     VertexArrayBuffer<IndexValue> _indexBuffer;
     VertexArrayBuffer<float> _positionBuffer;
     VertexArrayBuffer<float> _normalBuffer;
@@ -366,6 +346,18 @@ private:
     }
 };
 
+Model ADSRendererImplementation::CreateModelFromImporter(ADSRenderer::Importer &importer)
+{
+    IndexValue vertexCollectionId = _positionBuffer.RegisterDataCollection(importer.GetVertices());
+    IndexValue normalCollectionId = _normalBuffer.RegisterDataCollection(importer.GetNormals());
+    IndexValue uvCollectionId = _uvBuffer.RegisterDataCollection(importer.GetUVCoords());
+    IndexValue vertexIndicesId = _indexBuffer.RegisterDataCollection(importer.GetIndices());
+    IndexValue materialId = RegisterMaterial(importer.GetMaterial("Material.002"));
+
+    return Model(vertexCollectionId, normalCollectionId, vertexIndicesId,
+                 materialId, uvCollectionId);
+}
+
 ADSRenderer::ADSRenderer()
 {
     _implementation = new ADSRendererImplementation();
@@ -381,29 +373,9 @@ void ADSRenderer::Use()
     _implementation->Use();
 }
 
-IndexValue ADSRenderer::RegisterIndexCollection(vector<IndexValue> indices, GLenum primitiveType)
+Model ADSRenderer::CreateModelFromImporter(ADSRenderer::Importer &importer)
 {
-    return _implementation->RegisterIndexCollection(indices, primitiveType);
-}
-
-IndexValue ADSRenderer::RegisterVertexCollection(vector<float> vertices)
-{
-    return _implementation->RegisterVertexCollection(vertices);
-}
-
-IndexValue ADSRenderer::RegisterNormalCollection(vector<float> normals)
-{
-    return _implementation->RegisterNormalCollection(normals);
-}
-
-IndexValue ADSRenderer::RegisterUVCollection(vector<float> normals)
-{
-    return _implementation->RegisterUVCollection(normals);
-}
-
-IndexValue ADSRenderer::RegisterMaterial(MaterialInfo material)
-{
-    return _implementation->RegisterMaterial(material);
+    return _implementation->CreateModelFromImporter(importer);
 }
 
 void ADSRenderer::SetModelMatrix(glm::mat4 matrix)
