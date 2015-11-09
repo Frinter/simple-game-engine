@@ -1,5 +1,7 @@
 #pragma once
 
+#include "model.hh"
+
 class IRenderer
 {
 public:
