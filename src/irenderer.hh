@@ -27,5 +27,7 @@ public:
     virtual void Use() = 0;
     virtual void Render(const Model *model) = 0;
 
+    virtual void SetModelMatrix(const glm::mat4 &matrix) = 0;
+
     virtual Model *CreateModelFromImporter(Importer &importer) = 0;
 };

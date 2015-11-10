@@ -15,7 +15,7 @@ public:
     
     void Use();
     Model *CreateModelFromImporter(IRenderer::Importer &importer);
-    void SetModelMatrix(glm::mat4 matrix);
+    void SetModelMatrix(const glm::mat4 &matrix);
     void SetViewMatrix(glm::mat4 matrix);
     void SetLight(LightInfo info);
 
@@ -28,7 +28,7 @@ public:
         virtual ~IADSRendererImplementation() {}
         virtual void Use() = 0;
         virtual Model *CreateModelFromImporter(IRenderer::Importer &importer) = 0;
-        virtual void SetModelMatrix(glm::mat4 matrix) = 0;
+        virtual void SetModelMatrix(const glm::mat4 &matrix) = 0;
         virtual void SetViewMatrix(glm::mat4 matrix) = 0;
         virtual void SetLight(LightInfo info) = 0;
         virtual void Render(const Model *model) = 0;

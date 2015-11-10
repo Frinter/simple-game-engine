@@ -159,7 +159,7 @@ public:
         return index;
     }
 
-    void SetModelMatrix(glm::mat4 matrix)
+    void SetModelMatrix(const glm::mat4 &matrix)
     {
         _modelMatrix = matrix;
 
@@ -401,7 +401,7 @@ Model *ADSRenderer::CreateModelFromImporter(IRenderer::Importer &importer)
     return _implementation->CreateModelFromImporter(importer);
 }
 
-void ADSRenderer::SetModelMatrix(glm::mat4 matrix)
+void ADSRenderer::SetModelMatrix(const glm::mat4 &matrix)
 {
     _implementation->SetModelMatrix(matrix);
 }
