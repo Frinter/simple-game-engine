@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <vector>
 #include <glm/glm.hpp>
 
@@ -15,87 +16,100 @@ public:
     ObjImporter(ObjParser::IParseResult *result)
         : _parseResult(result)
     {
-    }
-
-    std::vector<float> GetVertices()
-    {
         translateAllVertices();
-        return _vertices;
     }
 
-    std::vector<float> GetNormals()
+    std::vector<RenderObject> GetRenderObjects()
     {
-        translateAllVertices();
-        return _normals;
+        return _renderObjects;
     }
 
-    std::vector<float> GetUVCoords()
-    {
-        translateAllVertices();
-        return _uvCoords;
-    }
-
-    std::vector<IndexValue> GetIndices()
-    {
-        std::vector<IndexValue> processedIndices;
-        std::vector<ObjParser::Face> faces = _parseResult->GetFaces();
-
-        for (int i = 0; i < faces.size(); ++i)
-        {
-            ObjParser::Face face = faces[i];
-
-            for (int j = 0; j < face.vertexIndices.size(); ++j)
-            {
-                if (j >= 3)
-                {
-                    processedIndices.push_back(face.vertexIndices.size()*i + j - 3);
-                    processedIndices.push_back(face.vertexIndices.size()*i + j - 1);
-                }
-                processedIndices.push_back(face.vertexIndices.size()*i + j);
-            }
-        }
-        return processedIndices;
-    }
-
-    MaterialInfo GetMaterial(const char *name);
+    MaterialInfo GetMaterial(const std::string &name);
 
 private:
     ObjParser::IParseResult *_parseResult;
 
+    std::vector<IndexValue> _indices;
     std::vector<float> _vertices;
     std::vector<float> _normals;
     std::vector<float> _uvCoords;
+    std::string _currentMaterial;
+
+    std::vector<RenderObject> _renderObjects;
 
 private:
     void translateAllVertices()
     {
         _vertices.clear();
         _normals.clear();
+
         std::vector<ObjParser::Face> faces = _parseResult->GetFaces();
         std::vector<ObjParser::Vertex> vertices = _parseResult->GetVertices();
         std::vector<ObjParser::Normal> normals = _parseResult->GetNormals();
         std::vector<ObjParser::UVCoord> uvCoords = _parseResult->GetUVCoords();
 
+        _currentMaterial = faces[0].material;
+
         for (int i = 0; i < faces.size(); ++i)
         {
             ObjParser::Face face = faces[i];
+            if (face.material != _currentMaterial)
+            {
+                _renderObjects.push_back(MakeRenderObjectFromCurrentState());
+                ClearCurrentState();
+                _currentMaterial = face.material;
+            }
+
             for (int j = 0; j < face.normalIndices.size(); ++j)
             {
                 if (j >= 3)
                 {
-                    addUVCoord(uvCoords[face.UVIndices[j-3]]);
+                    _indices.push_back(face.vertexIndices.size()*i + j - 3);
+                    _indices.push_back(face.vertexIndices.size()*i + j - 1);
                     addNormal(normals[face.normalIndices[j-3]]);
                     addVertex(vertices[face.vertexIndices[j-3]]);
-                    addUVCoord(uvCoords[face.UVIndices[j-1]]);
                     addNormal(normals[face.normalIndices[j-1]]);
                     addVertex(vertices[face.vertexIndices[j-1]]);
+
+                    if (face.UVIndices.size() > 0)
+                    {
+                        addUVCoord(uvCoords[face.UVIndices[j-3]]);
+                        addUVCoord(uvCoords[face.UVIndices[j-1]]);
+                    }
                 }
 
-                addUVCoord(uvCoords[face.UVIndices[j]]);
+                if (face.UVIndices.size() > 0)
+                    addUVCoord(uvCoords[face.UVIndices[j]]);
+
+                _indices.push_back(face.vertexIndices.size()*i + j);
                 addNormal(normals[face.normalIndices[j]]);
                 addVertex(vertices[face.vertexIndices[j]]);
             }
         }
+
+        _renderObjects.push_back(MakeRenderObjectFromCurrentState());
+    }
+
+    void ClearCurrentState()
+    {
+        _indices.clear();
+        _vertices.clear();
+        _normals.clear();
+        _uvCoords.clear();
+        _currentMaterial.clear();
+    }
+
+    RenderObject MakeRenderObjectFromCurrentState()
+    {
+        RenderObject renderObject;
+
+        renderObject._indices = _indices;
+        renderObject._vertices = _vertices;
+        renderObject._normals = _normals;
+        renderObject._uvCoords = _uvCoords;
+        renderObject._materialName = _currentMaterial;
+
+        return renderObject;
     }
 
     void addUVCoord(ObjParser::UVCoord uvCoord)

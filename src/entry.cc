@@ -44,7 +44,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     Ticker ticker = Ticker(&systemTimer, &sleepService);
 
     // Load 3d assets
-    ObjParser::ObjFileParser parser("assets/", "textured-box.obj");
+    ObjParser::ObjFileParser parser("assets/", "textured-things.obj");
     ObjParser::IParseResult *parseResult = parser.Parse();
     ObjImporter importer(parseResult);
 

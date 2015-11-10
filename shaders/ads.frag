@@ -15,6 +15,7 @@ struct MaterialInfo
     vec3 Ks;
     float Shininess;
     sampler2D Kd_map;
+    bool hasKdMap;
 };
 
 uniform LightInfo Light;
@@ -48,7 +49,15 @@ void phongModel(vec3 position, vec3 normal,
 void main()
 {
     vec3 ambient, diffuse, specular;
+    vec4 texColor;
     phongModel(Position, Normal, ambient, diffuse, specular);
-    vec4 texColor = texture(Material.Kd_map, TexCoord);
+    if (Material.hasKdMap)
+    {
+        texColor = texture(Material.Kd_map, TexCoord);
+    }
+    else
+    {
+        texColor = vec4(1.0);
+    }
     FragColor = vec4(ambient + diffuse, 1.0) * texColor + vec4(specular, 1.0);
 }

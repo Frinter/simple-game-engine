@@ -147,7 +147,12 @@ public:
         IndexValue index = _materials.size();
         if (material.Kd_imageInfo != NULL)
         {
+            material.hasKdMap = true;
             material.Kd_mapId = registerTexture(material.Kd_imageInfo);
+        }
+        else
+        {
+            material.hasKdMap = false;
         }
 
         _materials.push_back(material);
@@ -191,18 +196,25 @@ public:
     {
         glBindVertexArray(_vaoHandle);
 
-        _indexBuffer.UseDataCollection(model.GetVertexIndicesId());
-        _positionBuffer.UseDataCollection(model.GetVertexPositionsId());
-        _normalBuffer.UseDataCollection(model.GetVertexNormalsId());
-        _uvBuffer.UseDataCollection(model.GetUVCoordsId());
-        useMaterial(model.GetMaterialId());
-
         glUniformMatrix4fv(_modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(_modelViewMatrix));
         glUniformMatrix3fv(_normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(_normalMatrix));
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
-        glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
+        const std::vector<Model::RenderUnit> renderUnits = model.GetRenderUnits();
+
+        for (int i = 0; i < renderUnits.size(); ++i)
+        {
+            Model::RenderUnit renderUnit = renderUnits[i];
+
+            _indexBuffer.UseDataCollection(renderUnit.GetVertexIndicesId());
+            _positionBuffer.UseDataCollection(renderUnit.GetVertexPositionsId());
+            _normalBuffer.UseDataCollection(renderUnit.GetVertexNormalsId());
+            _uvBuffer.UseDataCollection(renderUnit.GetUVCoordsId());
+            useMaterial(renderUnit.GetMaterialId());
+
+            glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
+        }
     }
 
 private:
@@ -258,6 +270,7 @@ private:
         setUniform("Material.Ks", glm::value_ptr(_materials[index].Ks));
         setUniform("Material.Shininess", &_materials[index].shininess);
         setUniform("Material.Kd_map", 0);
+        setUniform("Material.hasKdMap", (int)_materials[index].hasKdMap);
     }
 
     void setUniform(const char *uniformName, const int info)
@@ -348,14 +361,24 @@ private:
 
 Model ADSRendererImplementation::CreateModelFromImporter(ADSRenderer::Importer &importer)
 {
-    IndexValue vertexCollectionId = _positionBuffer.RegisterDataCollection(importer.GetVertices());
-    IndexValue normalCollectionId = _normalBuffer.RegisterDataCollection(importer.GetNormals());
-    IndexValue uvCollectionId = _uvBuffer.RegisterDataCollection(importer.GetUVCoords());
-    IndexValue vertexIndicesId = _indexBuffer.RegisterDataCollection(importer.GetIndices());
-    IndexValue materialId = RegisterMaterial(importer.GetMaterial("Material.002"));
+    vector<Model::RenderUnit> renderUnits;
+    vector<RenderObject> renderObjects = importer.GetRenderObjects();
 
-    return Model(vertexCollectionId, normalCollectionId, vertexIndicesId,
-                 materialId, uvCollectionId);
+    for (int i = 0; i < renderObjects.size(); ++i)
+    {
+        RenderObject object = renderObjects[i];
+
+        IndexValue vertexCollectionId = _positionBuffer.RegisterDataCollection(object._vertices);
+        IndexValue normalCollectionId = _normalBuffer.RegisterDataCollection(object._normals);
+        IndexValue uvCollectionId = _uvBuffer.RegisterDataCollection(object._uvCoords);
+        IndexValue vertexIndicesId = _indexBuffer.RegisterDataCollection(object._indices);
+        IndexValue materialId = RegisterMaterial(importer.GetMaterial(object._materialName));
+
+        renderUnits.push_back(Model::RenderUnit(vertexCollectionId, normalCollectionId,
+                                                vertexIndicesId, materialId, uvCollectionId));
+    }
+
+    return Model(renderUnits);
 }
 
 ADSRenderer::ADSRenderer()

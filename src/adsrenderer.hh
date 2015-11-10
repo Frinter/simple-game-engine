@@ -1,10 +1,20 @@
 #pragma once
 
+#include <string>
 #include <vector>
 #include <glm/glm.hpp>
 
 #include "irenderer.hh"
 #include "model.hh"
+
+typedef struct RenderObject
+{
+    std::vector<IndexValue> _indices;
+    std::vector<float> _vertices;
+    std::vector<float> _normals;
+    std::vector<float> _uvCoords;
+    std::string _materialName;
+} RenderObject;
 
 class ADSRenderer : public IRenderer
 {
@@ -13,11 +23,8 @@ public:
     {
     public:
         virtual ~Importer() {}
-        virtual std::vector<float> GetVertices() = 0;
-        virtual std::vector<float> GetNormals() = 0;
-        virtual std::vector<float> GetUVCoords() = 0;
-        virtual std::vector<IndexValue> GetIndices() = 0;
-        virtual MaterialInfo GetMaterial(const char *name) = 0;
+        virtual MaterialInfo GetMaterial(const std::string &name) = 0;
+        virtual std::vector<RenderObject> GetRenderObjects() = 0;
     };
 
 public:

@@ -31,4 +31,5 @@ typedef struct MaterialInfo
     float shininess;
     RawImageInfo *Kd_imageInfo;
     GLuint Kd_mapId;
+    bool hasKdMap;
 } MaterialInfo;

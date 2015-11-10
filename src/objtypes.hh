@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "types.hh"
 
 namespace ObjParser
@@ -39,6 +42,6 @@ namespace ObjParser
         std::vector<IndexValue> vertexIndices;
         std::vector<IndexValue> normalIndices;
         std::vector<IndexValue> UVIndices;
-        Material *material;
+        std::string material;
     } Face;
 }

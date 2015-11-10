@@ -64,7 +64,7 @@ MaterialInfo ObjImporter::translateMaterial(ObjParser::Material *material)
     return info;
 }
 
-MaterialInfo ObjImporter::GetMaterial(const char *name)
+MaterialInfo ObjImporter::GetMaterial(const std::string &name)
 {
     std::vector<ObjParser::Material*> materials = _parseResult->GetMaterials();
     ObjParser::Material *material = NULL;

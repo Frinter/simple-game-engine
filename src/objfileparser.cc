@@ -394,7 +394,7 @@ class ObjFileParserImplementation : public ObjFileParser::IObjFileParserImplemen
 {
 public:
     ObjFileParserImplementation(const char *path, const char *fileName)
-        : _path(path), _fileName(fileName), _scanner(NULL), _currentMaterial(NULL)
+        : _path(path), _fileName(fileName), _scanner(NULL)
     {
     }
 
@@ -416,7 +416,7 @@ private:
     const char *_fileName;
     ObjTokenScanner *_scanner;
     ObjParseResult *_result;
-    Material *_currentMaterial;
+    string _currentMaterial;
     void MatchValue();
     void MatchLine();
 };
@@ -589,25 +589,26 @@ void ObjFileParserImplementation::MatchLine()
     else if (_scanner->GetCurrentToken() == Token::MATERIAL_NAME)
     {
         _scanner->MatchToken(Token::MATERIAL_NAME);
-        string name = _scanner->GetTokenBuffer();
-        _scanner->MatchToken(Token::IDENTIFIER);
+        _currentMaterial = _scanner->GetTokenBuffer();
+        bool materialFound = false;
 
-        _currentMaterial = NULL;
         for (int i = 0; i < _result->_materials.size(); ++i)
         {
-            if (_result->_materials[i]->name == name)
+            if (_result->_materials[i]->name == _currentMaterial)
             {
-                _currentMaterial = _result->_materials[i];
+                materialFound = true;
                 break;
             }
         }
 
-        if (_currentMaterial == NULL)
+        if (!materialFound)
         {
             std::stringstream errorStream;
-            errorStream << "Parse error: coult not find referenced material: " << name << " - " << _fileName << " line: " << _scanner->GetLine();
+            errorStream << "Parse error: could not find referenced material: " << _currentMaterial << " - " << _fileName << " line: " << _scanner->GetLine();
             throw std::runtime_error(errorStream.str());
         }
+
+        _scanner->MatchToken(Token::IDENTIFIER);
     }
     else if (_scanner->GetCurrentToken() == Token::MATERIAL_LIBRARY_INDICATOR)
     {
