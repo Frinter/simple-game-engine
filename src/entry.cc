@@ -15,6 +15,7 @@
 #include <GL/gl_core_3_3.h>
 
 #include "adsrenderer.hh"
+#include "entity.hh"
 #include "model.hh"
 #include "objimporter.hh"
 #include "objparser.hh"
@@ -25,6 +26,52 @@
 
 using std::cout;
 using std::endl;
+
+class SimpleObjectGraphicsComponent
+{
+public:
+    SimpleObjectGraphicsComponent(IRenderer *renderer)
+        : _renderer(renderer)
+    {
+        ObjParser::ObjFileParser parser("assets/", "textured-things.obj");
+        ObjParser::IParseResult *parseResult = parser.Parse();
+        ObjImporter importer(parseResult);
+        _model = renderer->CreateModelFromImporter(importer);
+    }
+
+    void update()
+    {
+        _renderer->Render(_model);
+    }
+
+private:
+    IRenderer *_renderer;
+    Model *_model;
+};
+
+class SimpleObject : public Entity
+{
+public:
+    SimpleObject(SimpleObjectGraphicsComponent *graphicsComponent)
+        : _graphicsComponent(graphicsComponent)
+    {
+    }
+
+    void update()
+    {
+        _graphicsComponent->update();
+    }
+
+public:
+    SimpleObjectGraphicsComponent *_graphicsComponent;
+};
+
+SimpleObject *CreateSimpleObject(IRenderer *renderer)
+{
+    SimpleObjectGraphicsComponent *graphicsComponent = new SimpleObjectGraphicsComponent(renderer);
+
+    return new SimpleObject(graphicsComponent);
+}
 
 static Framework::ApplicationState applicationState = {
     .windowName = "Rendering Engine"
@@ -43,13 +90,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     SleepService sleepService(applicationContext->GetSystemUtility());
     Ticker ticker = Ticker(&systemTimer, &sleepService);
 
-    // Load 3d assets
-    ObjParser::ObjFileParser parser("assets/", "textured-things.obj");
-    ObjParser::IParseResult *parseResult = parser.Parse();
-    ObjImporter importer(parseResult);
-
     ADSRenderer *adsRenderer = new ADSRenderer();
-    Model model = adsRenderer->CreateModelFromImporter(importer);
 
     adsRenderer->SetModelMatrix(glm::translate(glm::mat4(1.0),
                                                glm::vec3(0.0, 0.0, 0.0)));
@@ -60,10 +101,12 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     lightInfo.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
     lightInfo.La = glm::vec3(0.0, 0.0, 0.0);
     lightInfo.Ld = glm::vec3(1.0, 1.0, 1.0);
-    lightInfo.Ls = glm::vec3(0.4, 0.4, 0.7);
+    lightInfo.Ls = glm::vec3(0.0, 0.0, 0.0);
     adsRenderer->SetLight(lightInfo);
 
     IRenderer *renderer = (IRenderer *)adsRenderer;
+
+    Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer);
 
     ticker.Start(17);
 
@@ -77,7 +120,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
         }
 
         glClear(GL_DEPTH_BUFFER_BIT);
-        renderer->Render(model);
+        simpleEntity->update();
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
     }

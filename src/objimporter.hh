@@ -6,11 +6,11 @@
 
 #include "GL/gl_core_3_3.h"
 
-#include "adsrenderer.hh"
+#include "irenderer.hh"
 #include "objparser.hh"
 #include "types.hh"
 
-class ObjImporter : public ADSRenderer::Importer
+class ObjImporter : public IRenderer::Importer
 {
 public:
     ObjImporter(ObjParser::IParseResult *result)

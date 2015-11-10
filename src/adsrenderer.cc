@@ -140,7 +140,7 @@ public:
         glUseProgram(_shaderProgramHandle);
     }
 
-    Model CreateModelFromImporter(ADSRenderer::Importer &importer);
+    Model *CreateModelFromImporter(IRenderer::Importer &importer);
     
     IndexValue RegisterMaterial(MaterialInfo material)
     {
@@ -192,7 +192,7 @@ public:
         setUniform("Light.Ls", glm::value_ptr(_light.Ls));
     }
 
-    void Render(const Model &model)
+    void Render(const Model *model)
     {
         glBindVertexArray(_vaoHandle);
 
@@ -201,7 +201,7 @@ public:
         glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
         glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
 
-        const std::vector<Model::RenderUnit> renderUnits = model.GetRenderUnits();
+        const std::vector<Model::RenderUnit> renderUnits = model->GetRenderUnits();
 
         for (int i = 0; i < renderUnits.size(); ++i)
         {
@@ -359,7 +359,7 @@ private:
     }
 };
 
-Model ADSRendererImplementation::CreateModelFromImporter(ADSRenderer::Importer &importer)
+Model *ADSRendererImplementation::CreateModelFromImporter(IRenderer::Importer &importer)
 {
     vector<Model::RenderUnit> renderUnits;
     vector<RenderObject> renderObjects = importer.GetRenderObjects();
@@ -378,7 +378,7 @@ Model ADSRendererImplementation::CreateModelFromImporter(ADSRenderer::Importer &
                                                 vertexIndicesId, materialId, uvCollectionId));
     }
 
-    return Model(renderUnits);
+    return new Model(renderUnits);
 }
 
 ADSRenderer::ADSRenderer()
@@ -396,7 +396,7 @@ void ADSRenderer::Use()
     _implementation->Use();
 }
 
-Model ADSRenderer::CreateModelFromImporter(ADSRenderer::Importer &importer)
+Model *ADSRenderer::CreateModelFromImporter(IRenderer::Importer &importer)
 {
     return _implementation->CreateModelFromImporter(importer);
 }
@@ -416,7 +416,7 @@ void ADSRenderer::SetLight(LightInfo info)
     _implementation->SetLight(info);
 }
 
-void ADSRenderer::Render(const Model &model)
+void ADSRenderer::Render(const Model *model)
 {
     _implementation->Render(model);    
 }
