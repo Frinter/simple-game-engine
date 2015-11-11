@@ -4,7 +4,7 @@ SRC := $(foreach dir,$(SUB_DIRS),$(wildcard $(dir)/*.cc))
 OBJ := $(patsubst src/%.cc,build/%.o,$(SRC))
 MAINS := $(wildcard src/*entry.cc)
 MAIN_OBJ := $(patsubst src/%.cc,build/%.o,$(MAINS))
-LIBS := -Llib -lmingw32 lib/platform.MINGW.64.a -ljpeg -lopengl32 -lgdi32 -lwinmm -static -lstdc++
+LIBS := lib/lodepng.cpp -Llib -lmingw32 lib/platform.MINGW.64.a -ljpeg -lopengl32 -lgdi32 -lwinmm -static -lstdc++
 
 TEST_SUB_DIRS := $(shell find tests -type d -print)
 TEST_OBJ_DIRS := $(foreach dir,$(TEST_SUB_DIRS),$(patsubst tests%,test-build%,$(dir)))
