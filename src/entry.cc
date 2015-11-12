@@ -16,6 +16,7 @@
 
 #include "adsrenderer.hh"
 #include "entity.hh"
+#include "imageloader.hh"
 #include "model.hh"
 #include "objimporter.hh"
 #include "objparser.hh"
@@ -27,13 +28,16 @@
 using std::cout;
 using std::endl;
 
+const float PI = 3.1415926;
+
 class SimpleObjectInputComponent
 {
 public:
-    SimpleObjectInputComponent(Framework::ReadingKeyboardState *keyboardState)
-        : _keyboardState(keyboardState)
+    SimpleObjectInputComponent(Framework::ReadingKeyboardState *keyboardState,
+                               Framework::ReadingMouseState *mouseState)
+        : _keyboardState(keyboardState), _mouseState(mouseState)
     {
-        _velocity = 0.01;
+        _velocity = 0.02;
     }
 
     void update(glm::vec3 *position)
@@ -54,10 +58,16 @@ public:
         {
             *position = glm::vec3((*position)[0] + _velocity, (*position)[1], (*position)[2]);
         }
+
+        if (_mouseState->GetMouseButtonState(System::MouseButton::Button1) == Framework::KeyState::Pressed)
+        {
+            cout << "Button 1 pressed" << endl;
+        }
     }
 
 private:
     Framework::ReadingKeyboardState *_keyboardState;
+    Framework::ReadingMouseState *_mouseState;
     float _velocity;
 };
 
@@ -97,7 +107,7 @@ public:
     void update()
     {
         _inputComponent->update(&_position);
-        _graphicsComponent->update(_position);
+        //_graphicsComponent->update(_position);
     }
 
 public:
@@ -107,10 +117,12 @@ public:
     glm::vec3 _position;
 };
 
-SimpleObject *CreateSimpleObject(IRenderer *renderer, Framework::ReadingKeyboardState *keyboardState)
+SimpleObject *CreateSimpleObject(IRenderer *renderer,
+                                 Framework::ReadingKeyboardState *keyboardState,
+                                 Framework::ReadingMouseState *mouseState)
 {
     SimpleObjectGraphicsComponent *graphicsComponent = new SimpleObjectGraphicsComponent(renderer);
-    SimpleObjectInputComponent *inputComponent = new SimpleObjectInputComponent(keyboardState);
+    SimpleObjectInputComponent *inputComponent = new SimpleObjectInputComponent(keyboardState, mouseState);
 
     return new SimpleObject(graphicsComponent, inputComponent);
 }
@@ -134,9 +146,12 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     ADSRenderer *adsRenderer = new ADSRenderer();
 
-    adsRenderer->SetViewMatrix(glm::lookAt(glm::vec3(-2.0, 3.0, 3.0),
+    adsRenderer->SetViewMatrix(glm::lookAt(glm::vec3( -5.0, 3.0, 10.0),
                                            glm::vec3( 0.0, 0.0, 0.0),
                                            glm::vec3( 0.0, 1.0, 0.0)));
+    adsRenderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
+                                                -4.0f, 4.0f,
+                                                1.0f, 100.0f));
     LightInfo lightInfo;
     lightInfo.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
     lightInfo.La = glm::vec3(0.0, 0.0, 0.0);
@@ -147,19 +162,47 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     IRenderer *renderer = (IRenderer *)adsRenderer;
 
     Framework::ReadingKeyboardState *keyboardState = windowController->GetKeyStateReader();
+    Framework::ReadingMouseState *mouseState = windowController->GetMouseReader();
+    Framework::ReadingWindowState *windowState = windowController->GetWindowReader();
 
-    Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer, keyboardState);
+    unsigned int windowWidth, windowHeight, newWindowWidth, newWindowHeight;
+    windowState->GetSize(&windowWidth, &windowHeight);
+
+    Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer, keyboardState, mouseState);
+
+    IndexValue tilemapId = adsRenderer->RegisterTileMap(LoadImageFromPNG("assets/minecraft-tiles.png"), 64, 64);
+
 
     ticker.Start(17);
 
     while (!applicationContext->IsClosing())
     {
+        windowState->GetSize(&newWindowWidth, &newWindowHeight);
+        if (newWindowWidth != windowWidth || newWindowHeight != windowHeight)
+        {
+            windowWidth = newWindowWidth;
+            windowHeight = newWindowHeight;
+            adsRenderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
+                                                        -4.0f, 4.0f,
+                                                        1.0f, 100.0f));
+        }
+
+        int scrollDelta = mouseState->GetScrollDelta();
+        if (scrollDelta != 0)
+        {
+            cout << "scroll: " << scrollDelta << endl;
+        }
+
         if (keyboardState->GetKeyState(System::KeyCode::KeyQ) == Framework::KeyState::Pressed)
         {
             applicationContext->Close();
         }
 
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        adsRenderer->SetModelMatrix(glm::mat4(1.0));
+        adsRenderer->RenderTile(tilemapId, 1, 0);
+        adsRenderer->SetModelMatrix(glm::rotate(glm::mat4(1.0f), -90.0f * PI / 180, glm::vec3(0.0f, 1.0f, 0.0f)));
+        adsRenderer->RenderTile(tilemapId, 2, 0);
         simpleEntity->update();
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
