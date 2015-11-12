@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "adsrenderer.hh"
+#include "shaderprogram.hh"
 #include "types.hh"
 
 using std::cout;
@@ -194,47 +195,41 @@ public:
           _positionBuffer(GL_ARRAY_BUFFER), _normalBuffer(GL_ARRAY_BUFFER),
           _uvBuffer(GL_ARRAY_BUFFER)
     {
-        _vertexShaderHandle = CreateShaderFromSource(GL_VERTEX_SHADER, "shaders/ads.vert");
-        _fragmentShaderHandle = CreateShaderFromSource(GL_FRAGMENT_SHADER, "shaders/ads.frag");
-
-        _shaderProgramHandle = glCreateProgram();
+        _shaderProgram = new ShaderProgram("ads");
 
         glEnable(GL_DEPTH_TEST);
 
-        glAttachShader(_shaderProgramHandle, _vertexShaderHandle);
-        glAttachShader(_shaderProgramHandle, _fragmentShaderHandle);
-
-        glBindAttribLocation(_shaderProgramHandle, 0, "VertexPosition");
-        glBindAttribLocation(_shaderProgramHandle, 1, "VertexNormal");
-        glBindAttribLocation(_shaderProgramHandle, 2, "VertexTexCoord");
-
-        glLinkProgram(_shaderProgramHandle);
-
-        Use();
-
         glGenVertexArrays(1, &_vaoHandle);
         glBindVertexArray(_vaoHandle);
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glEnableVertexAttribArray(2);
+
+        _shaderProgram->EnableAttribArray(0);
+        _shaderProgram->EnableAttribArray(1);
+        _shaderProgram->EnableAttribArray(2);
+
+        _shaderProgram->BindAttribLocation(0, "VertexPosition");
+        _shaderProgram->BindAttribLocation(1, "VertexNormal");
+        _shaderProgram->BindAttribLocation(2, "VertexTexCoord");
+
+        _shaderProgram->Link();
+        _shaderProgram->Use();
 
         _positionBuffer.SetUp(0, 4, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
         _normalBuffer.SetUp(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
         _uvBuffer.SetUp(2, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
 
-        _modelViewMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ModelViewMatrix");
-        _normalMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "NormalMatrix");
-        _projectionMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "ProjectionMatrix");
-        _MVPMatrixLocation = glGetUniformLocation(_shaderProgramHandle, "MVP");
+        _modelViewMatrixLocation = _shaderProgram->GetUniformLocation("ModelViewMatrix");
+        _normalMatrixLocation = _shaderProgram->GetUniformLocation("NormalMatrix");
+        _projectionMatrixLocation = _shaderProgram->GetUniformLocation("ProjectionMatrix");
+        _MVPMatrixLocation = _shaderProgram->GetUniformLocation("MVP");
 
         _imageVertexIndex = _positionBuffer.RegisterDataCollection(imageVertices, 24);
         _imageNormalIndex = _normalBuffer.RegisterDataCollection(imageNormals, 18);
         _imageIndexIndex = _indexBuffer.RegisterDataCollection(imageIndices, 6);
     }
-    
+
     void Use()
     {
-        glUseProgram(_shaderProgramHandle);
+        _shaderProgram->Use();
     }
 
     Model *CreateModelFromImporter(IRenderer::Importer &importer);
@@ -299,10 +294,10 @@ public:
 
         glm::vec4 viewLightPosition = _modelViewMatrix * _light.position;
 
-        setUniform("Light.Position", viewLightPosition);
-        setUniform("Light.La", glm::value_ptr(_light.La));
-        setUniform("Light.Ld", glm::value_ptr(_light.Ld));
-        setUniform("Light.Ls", glm::value_ptr(_light.Ls));
+        _shaderProgram->SetUniform("Light.Position", viewLightPosition);
+        _shaderProgram->SetUniform("Light.La", glm::value_ptr(_light.La));
+        _shaderProgram->SetUniform("Light.Ld", glm::value_ptr(_light.Ld));
+        _shaderProgram->SetUniform("Light.Ls", glm::value_ptr(_light.Ls));
     }
 
     void RenderTile(IndexValue tilemapId, IndexValue x, IndexValue y)
@@ -322,12 +317,12 @@ public:
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, _tileMaps[tilemapId].GetTextureId());
 
-        setUniform("Material.Ka", glm::vec3(0.0f, 0.0f, 0.0f));
-        setUniform("Material.Kd", glm::vec3(1.0f, 1.0f, 1.0f));
-        setUniform("Material.Ks", glm::vec3(0.0f, 0.0f, 0.0f));
-        setUniform("Material.Shininess", 1.0f);
-        setUniform("Material.Kd_map", 0);
-        setUniform("Material.hasKdMap", (int)true);
+        _shaderProgram->SetUniform("Material.Ka", glm::vec3(0.0f, 0.0f, 0.0f));
+        _shaderProgram->SetUniform("Material.Kd", glm::vec3(1.0f, 1.0f, 1.0f));
+        _shaderProgram->SetUniform("Material.Ks", glm::vec3(0.0f, 0.0f, 0.0f));
+        _shaderProgram->SetUniform("Material.Shininess", 1.0f);
+        _shaderProgram->SetUniform("Material.Kd_map", 0);
+        _shaderProgram->SetUniform("Material.hasKdMap", (int)true);
 
         glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
     }
@@ -367,10 +362,8 @@ private:
 
     vector<MaterialInfo> _materials;
     vector<TileMap> _tileMaps;
-    
-    GLuint _vertexShaderHandle;
-    GLuint _fragmentShaderHandle;
-    GLuint _shaderProgramHandle;
+
+    ShaderProgram *_shaderProgram;
     GLuint _vaoHandle;
 
     GLuint _modelViewMatrixLocation;
@@ -412,36 +405,12 @@ private:
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, _materials[index].Kd_mapId);
 
-        setUniform("Material.Ka", glm::value_ptr(_materials[index].Ka));
-        setUniform("Material.Kd", glm::value_ptr(_materials[index].Kd));
-        setUniform("Material.Ks", glm::value_ptr(_materials[index].Ks));
-        setUniform("Material.Shininess", &_materials[index].shininess);
-        setUniform("Material.Kd_map", 0);
-        setUniform("Material.hasKdMap", (int)_materials[index].hasKdMap);
-    }
-
-    void setUniform(const char *uniformName, const int info)
-    {
-        GLuint uniformLocation = glGetUniformLocation(_shaderProgramHandle, uniformName);
-        glUniform1i(uniformLocation, info);
-    }
-
-    void setUniform(const char *uniformName, const float *info)
-    {
-        GLuint uniformLocation = glGetUniformLocation(_shaderProgramHandle, uniformName);
-        glUniform3fv(uniformLocation, 1, info);
-    }
-
-    void setUniform(const char *uniformName, const glm::vec3 &info)
-    {
-        GLuint uniformLocation = glGetUniformLocation(_shaderProgramHandle, uniformName);
-        glUniform3fv(uniformLocation, 1, glm::value_ptr(info));
-    }
-
-    void setUniform(const char *uniformName, const glm::vec4 &info)
-    {
-        GLuint uniformLocation = glGetUniformLocation(_shaderProgramHandle, uniformName);
-        glUniform4fv(uniformLocation, 1, glm::value_ptr(info));
+        _shaderProgram->SetUniform("Material.Ka", glm::value_ptr(_materials[index].Ka));
+        _shaderProgram->SetUniform("Material.Kd", glm::value_ptr(_materials[index].Kd));
+        _shaderProgram->SetUniform("Material.Ks", glm::value_ptr(_materials[index].Ks));
+        _shaderProgram->SetUniform("Material.Shininess", &_materials[index].shininess);
+        _shaderProgram->SetUniform("Material.Kd_map", 0);
+        _shaderProgram->SetUniform("Material.hasKdMap", (int)_materials[index].hasKdMap);
     }
 
     string GetShaderLog(GLuint shaderHandle)
