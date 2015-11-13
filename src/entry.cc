@@ -361,6 +361,74 @@ private:
     TileRenderer *_tileRenderer;
 };
 
+typedef struct Voxel
+{
+    IndexValue tileX;
+    IndexValue tileY;
+} Voxel;
+
+class VoxelSectorGraphicsComponent
+{
+public:
+    VoxelSectorGraphicsComponent(ADSRenderer *renderer, TileRenderer *tileRenderer)
+        : _renderer(renderer), _tileRenderer(tileRenderer)
+    {
+    }
+    
+    void update()
+    {
+        _renderer->SetModelMatrix(glm::mat4(1.0));
+        renderVoxel(1, 0, glm::vec3(3.0f, 0.0f, 0.0f));
+        renderVoxel(1, 0, glm::vec3(3.0f, 1.0f, 0.0f));
+        renderVoxel(1, 0, glm::vec3(3.0f, 2.0f, 0.0f));
+        renderVoxel(1, 0, glm::vec3(2.0f, 0.0f, 0.0f));
+        renderVoxel(1, 0, glm::vec3(2.0f, 1.0f, 0.0f));
+        renderVoxel(1, 0, glm::vec3(2.0f, 2.0f, 0.0f));
+        renderVoxel(2, 0, glm::vec3(2.0f, 2.0f, 1.0f));
+        renderVoxel(2, 0, glm::vec3(2.0f, 1.0f, 1.0f));
+    }
+
+private:
+    ADSRenderer *_renderer;
+    TileRenderer *_tileRenderer;
+
+private:
+    void renderVoxel(IndexValue tileX, IndexValue tileY, const glm::vec3 &position)
+    {
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Up);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Down);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Left);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Right);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Forward);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Backward);
+    }
+};
+
+class VoxelSector : public Entity
+{
+public:
+    VoxelSector(VoxelSectorGraphicsComponent *graphicsComponent)
+        : _graphicsComponent(graphicsComponent)
+    {
+    }
+    
+    void update()
+    {
+        _graphicsComponent->update();
+    }
+    
+private:
+    VoxelSectorGraphicsComponent *_graphicsComponent;
+};
+
+VoxelSector *CreateVoxelSector(ADSRenderer *renderer, TileRenderer *tileRenderer)
+{
+    VoxelSectorGraphicsComponent *graphicsComponent = new VoxelSectorGraphicsComponent(renderer, tileRenderer);
+    VoxelSector *sector = new VoxelSector(graphicsComponent);
+
+    return sector;
+}
+
 static Framework::ApplicationState applicationState = {
     .windowName = "Rendering Engine"
 };
@@ -405,8 +473,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer, keyboardState, mouseState);
 
     TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/minecraft-tiles.png"), 64, 64);
-    VoxelRenderer voxelRenderer(&tileRenderer);
-
+    VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer);
+    
     ticker.Start(17);
 
     while (!applicationContext->IsClosing())
@@ -433,15 +501,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
         }
 
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-        adsRenderer->SetModelMatrix(glm::mat4(1.0));
-        voxelRenderer.Render(1, 0, glm::vec3(3.0f, 0.0f, 0.0f));
-        voxelRenderer.Render(1, 0, glm::vec3(3.0f, 1.0f, 0.0f));
-        voxelRenderer.Render(1, 0, glm::vec3(3.0f, 2.0f, 0.0f));
-        voxelRenderer.Render(1, 0, glm::vec3(2.0f, 0.0f, 0.0f));
-        voxelRenderer.Render(1, 0, glm::vec3(2.0f, 1.0f, 0.0f));
-        voxelRenderer.Render(1, 0, glm::vec3(2.0f, 2.0f, 0.0f));
-        voxelRenderer.Render(2, 0, glm::vec3(2.0f, 2.0f, 1.0f));
-        voxelRenderer.Render(2, 0, glm::vec3(2.0f, 1.0f, 1.0f));
+        sector->update();
         simpleEntity->update();
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
