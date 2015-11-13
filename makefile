@@ -5,6 +5,7 @@ OBJ := $(patsubst src/%.cc,build/%.o,$(SRC))
 MAINS := $(wildcard src/*entry.cc)
 MAIN_OBJ := $(patsubst src/%.cc,build/%.o,$(MAINS))
 LIBS := lib/lodepng.cpp -Llib -lmingw32 lib/platform.MINGW.64.a -ljpeg -lopengl32 -lgdi32 -lwinmm -static -lstdc++
+INCLUDE := -Iinclude -Isrc
 
 TEST_SUB_DIRS := $(shell find tests -type d -print)
 TEST_OBJ_DIRS := $(foreach dir,$(TEST_SUB_DIRS),$(patsubst tests%,test-build%,$(dir)))
@@ -25,28 +26,28 @@ tests-run: bin/tests.exe
 	@$< #-d yes
 
 bin/debug-build.exe: $(OBJ)
-	clang++ -o $@ -Iinclude -std=c++11 $^ $(LIBS)
+	clang++ -o $@ $(INCLUDE) -std=c++11 $^ $(LIBS)
 
 bin/rendering-engine.exe: $(OBJ)
-	clang++ -o $@ -Iinclude -std=c++11 $^ $(LIBS) -Wl,-subsystem,windows
+	clang++ -o $@ $(INCLUDE) -std=c++11 $^ $(LIBS) -Wl,-subsystem,windows
 
 $(OBJ_DIRS) $(TEST_OBJ_DIRS):
 	@mkdir -p $@
 
 build/%.d: src/%.cc | $(OBJ_DIRS)
-	@clang++ -std=c++11 -MM -MT build/$*.o -Iinclude -MF $@ $<
+	@clang++ -std=c++11 -MM -MT build/$*.o $(INCLUDE) -MF $@ $<
 
 build/%.o: src/%.cc build/%.d | $(OBJ_DIRS)
-	clang++ -c -o $@ -std=c++11 -Iinclude $<
+	clang++ -c -o $@ -std=c++11 $(INCLUDE) $<
 
 test-build/%.d: tests/%.cc | $(TEST_OBJ_DIRS)
-	@clang++ -std=c++11 -MM -MT test-build/$*.o -Iinclude -Isrc -MF $@ $<
+	@clang++ -std=c++11 -MM -MT test-build/$*.o $(INCLUDE) -Isrc -MF $@ $<
 
 test-build/%.o: tests/%.cc test-build/%.d | $(TEST_OBJ_DIRS)
-	clang++ -c -o $@ -std=c++11 -Iinclude -Isrc $<
+	clang++ -c -o $@ -std=c++11 $(INCLUDE) -Isrc $<
 
 bin/tests.exe: $(TEST_OBJ) $(filter-out $(MAIN_OBJ),$(OBJ))
-	clang++ -o $@ -Iinclude -std=c++11 $^
+	clang++ -o $@ $(INCLUDE) -std=c++11 $^
 
 clean:
 	rm -R build

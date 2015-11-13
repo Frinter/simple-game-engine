@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include <framework/platform.hh>
 #include <GL/gl_core_3_3.h>
@@ -18,17 +19,18 @@
 #include "entity.hh"
 #include "imageloader.hh"
 #include "model.hh"
-#include "objimporter.hh"
-#include "objparser.hh"
-#include "sleepservice.hh"
-#include "systemtimer.hh"
-#include "ticker.hh"
+#include "objimporter/objimporter.hh"
+#include "objimporter/objparser.hh"
+#include "utility/sleepservice.hh"
+#include "utility/systemtimer.hh"
+#include "utility/ticker.hh"
 #include "types.hh"
 
 using std::cout;
 using std::endl;
 
 const float PI = 3.1415926;
+const float TAU = 2 * PI;
 
 class SimpleObjectInputComponent
 {
@@ -57,11 +59,6 @@ public:
         if (_keyboardState->GetKeyState(System::KeyCode::KeyRightArrow) == Framework::KeyState::Pressed)
         {
             *position = glm::vec3((*position)[0] + _velocity, (*position)[1], (*position)[2]);
-        }
-
-        if (_mouseState->GetMouseButtonState(System::MouseButton::Button1) == Framework::KeyState::Pressed)
-        {
-            cout << "Button 1 pressed" << endl;
         }
     }
 
@@ -419,6 +416,7 @@ public:
     
 private:
     VoxelSectorGraphicsComponent *_graphicsComponent;
+    
 };
 
 VoxelSector *CreateVoxelSector(ADSRenderer *renderer, TileRenderer *tileRenderer)
@@ -428,6 +426,123 @@ VoxelSector *CreateVoxelSector(ADSRenderer *renderer, TileRenderer *tileRenderer
 
     return sector;
 }
+
+class MouseTracker : public Entity
+{
+public:
+    MouseTracker(Framework::IWindowController *windowController)
+        : _windowController(windowController)
+    {
+        _mouseState = _windowController->GetMouseReader();
+        _previousMouseButtonState = Framework::KeyState::Unpressed;
+    }
+
+    void GetDeltaPosition(int *deltaX, int *deltaY)
+    {
+        *deltaX = _mouseDeltaX;
+        *deltaY = _mouseDeltaY;
+    }
+
+    void update()
+    {
+        Framework::KeyState mouseButtonState = _mouseState->GetMouseButtonState(System::MouseButton::Button1);
+        unsigned int mouseX = _mouseState->GetMouseX();
+        unsigned int mouseY = _mouseState->GetMouseY();
+
+        if (mouseButtonState == Framework::KeyState::Pressed)
+        {
+            if (_previousMouseButtonState == Framework::KeyState::Unpressed)
+            {
+                _mouseLockX = mouseX;
+                _mouseLockY = mouseY;
+            }
+
+            if (mouseX != _mouseLockX || mouseY != _mouseLockY)
+            {
+                _windowController->SetMousePosition(_mouseLockX, _mouseLockY);
+
+                _mouseDeltaX = mouseX - _mouseLockX;
+                _mouseDeltaY = mouseY - _mouseLockY;
+
+                mouseX = _mouseState->GetMouseX();
+                mouseY = _mouseState->GetMouseY();
+            }
+            else
+            {
+                _mouseDeltaX = 0;
+                _mouseDeltaY = 0;
+            }
+        }
+        else
+        {
+            _mouseDeltaX = mouseX - _mousePreviousX;
+            _mouseDeltaY = mouseY - _mousePreviousY;
+
+            _mousePreviousX = mouseX;
+            _mousePreviousY = mouseY;
+        }
+
+        _previousMouseButtonState = mouseButtonState;
+    }
+    
+private:
+    Framework::IWindowController *_windowController;
+    Framework::ReadingMouseState *_mouseState;
+
+    Framework::KeyState _previousMouseButtonState;
+    unsigned int _mouseLockX, _mouseLockY;
+    unsigned int _mousePreviousX, _mousePreviousY;
+    int _mouseDeltaX, _mouseDeltaY;
+};
+
+class Camera : public Entity
+{
+public:
+    Camera(MouseTracker *mouseTracker, Framework::ReadingMouseState *mouseState,
+        ADSRenderer *renderer)
+        : _mouseTracker(mouseTracker), _mouseState(mouseState),
+          _renderer(renderer)
+    {
+        _position = glm::vec3( -3.0, 3.0, 4.0);
+        _rotation = 0;
+        _renderer->SetViewMatrix(glm::lookAt(_position,
+                                             glm::vec3( 0.0, 0.0, 0.0),
+                                             glm::vec3( 0.0, 1.0, 0.0)));
+        _renderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
+                                                  -4.0f, 4.0f,
+                                                  1.0f, 100.0f));
+    }
+
+    void update()
+    {
+        if (_mouseState->GetMouseButtonState(System::MouseButton::Button1) == Framework::KeyState::Pressed)
+        {
+            int mouseDeltaX, mouseDeltaY;
+            _mouseTracker->GetDeltaPosition(&mouseDeltaX, &mouseDeltaY);
+
+            _rotation += (mouseDeltaX / 5) * (PI / 180);
+            if (_rotation > TAU)
+                _rotation -= TAU;
+            if (_rotation < 0)
+                _rotation += TAU;
+            
+            glm::vec3 rotatedPosition = glm::rotate(_position,
+                                                    _rotation,
+                                                    glm::vec3( 0.0, 1.0, 0.0));
+            _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
+                                                 glm::vec3( 0.0, 0.0, 0.0),
+                                                 glm::vec3( 0.0, 1.0, 0.0)));        
+        }
+    }
+    
+private:
+    MouseTracker *_mouseTracker;
+    Framework::ReadingMouseState *_mouseState;
+    ADSRenderer *_renderer;
+
+    glm::vec3 _position;
+    float _rotation;
+};
 
 static Framework::ApplicationState applicationState = {
     .windowName = "Rendering Engine"
@@ -448,12 +563,6 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     ADSRenderer *adsRenderer = new ADSRenderer();
 
-    adsRenderer->SetViewMatrix(glm::lookAt(glm::vec3( -3.0, 3.0, 4.0),
-                                           glm::vec3( 0.0, 0.0, 0.0),
-                                           glm::vec3( 0.0, 1.0, 0.0)));
-    adsRenderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
-                                                -4.0f, 4.0f,
-                                                1.0f, 100.0f));
     LightInfo lightInfo;
     lightInfo.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
     lightInfo.La = glm::vec3(0.0, 0.0, 0.0);
@@ -474,7 +583,9 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/minecraft-tiles.png"), 64, 64);
     VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer);
-    
+
+    MouseTracker *mouseTracker = new MouseTracker(windowController);
+    Camera *camera = new Camera(mouseTracker, mouseState, adsRenderer);
     ticker.Start(17);
 
     while (!applicationContext->IsClosing())
@@ -501,6 +612,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
         }
 
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        mouseTracker->update();
+        camera->update();
         sector->update();
         simpleEntity->update();
         windowController->SwapBuffers();
