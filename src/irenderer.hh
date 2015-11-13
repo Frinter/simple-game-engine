@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "model.hh"
 #include "types.hh"
 
@@ -26,6 +28,7 @@ public:
 public:
     virtual void Use() = 0;
     virtual void Render(const Model *model) = 0;
+    virtual void Render(std::vector<IndexValue> indices, std::vector<float> vertices, std::vector<float> normals, std::vector<float> UVs) = 0;
 
     virtual void SetModelMatrix(const glm::mat4 &matrix) = 0;
 

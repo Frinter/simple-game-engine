@@ -107,7 +107,7 @@ public:
     void update()
     {
         _inputComponent->update(&_position);
-        //_graphicsComponent->update(_position);
+        _graphicsComponent->update(_position);
     }
 
 public:
@@ -126,6 +126,240 @@ SimpleObject *CreateSimpleObject(IRenderer *renderer,
 
     return new SimpleObject(graphicsComponent, inputComponent);
 }
+
+enum class Direction
+{
+    Up,
+    Down,
+    Left,
+    Right,
+    Forward,
+    Backward
+};
+
+class TileRenderer
+{
+public:
+    TileRenderer(ADSRenderer *renderer, RawImageInfo *tilemapImage, float tileWidth, float tileHeight)
+        : _renderer(renderer), _tilemapImage(tilemapImage), _tileWidth(tileWidth), _tileHeight(tileHeight)
+    {
+        MaterialInfo tilemapMaterialInfo;
+        tilemapMaterialInfo.Ka = glm::vec3(0.0f, 0.0f, 0.0f);
+        tilemapMaterialInfo.Kd = glm::vec3(1.0f, 1.0f, 1.0f);
+        tilemapMaterialInfo.Ks = glm::vec3(0.0f, 0.0f, 0.0f);
+        tilemapMaterialInfo.shininess = 1.0f;
+        tilemapMaterialInfo.Kd_imageInfo = LoadImageFromPNG("assets/minecraft-tiles.png");
+
+        _materialId = _renderer->RegisterMaterial(tilemapMaterialInfo);
+    }
+
+    void Render(IndexValue tileX, IndexValue tileY, const glm::vec4 &location, Direction direction)
+    {
+        std::vector<IndexValue> indices;
+        std::vector<float> vertices;
+        std::vector<float> normals;
+        std::vector<float> UVs = GetUVsForTile(tileX, tileY);
+
+        indices.push_back(0);
+        indices.push_back(1);
+        indices.push_back(2);
+        indices.push_back(3);
+        indices.push_back(4);
+        indices.push_back(5);
+
+        switch(direction)
+        {
+        case Direction::Up:
+            addToVector(vertices, location);
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+
+            addToVector(vertices, location);
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3(0.0f, 1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f, 1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f, 1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3(0.0f, 1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f, 1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f, 1.0f, 0.0f));
+            break;
+
+        case Direction::Down:
+            addToVector(vertices, location + glm::vec4(0.0f, -1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, -1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, -1.0f, 1.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(0.0f, -1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, -1.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f, -1.0f, 1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3(0.0f,-1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f,-1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f,-1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3(0.0f,-1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f,-1.0f, 0.0f));
+            addToVector(normals, glm::vec3(0.0f,-1.0f, 0.0f));
+            break;
+
+        case Direction::Left:
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 1.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3(-1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3(-1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3(-1.0f, 0.0f, 0.0f));
+
+            addToVector(normals, glm::vec3(-1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3(-1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3(-1.0f, 0.0f, 0.0f));
+            break;
+
+        case Direction::Right:
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
+
+            addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
+            addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
+            break;
+
+        case Direction::Forward:
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 1.0f, 0.0f));
+
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            break;
+
+        case Direction::Backward:
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 0.0f, 0.0f));
+
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
+            break;
+        }
+
+        _renderer->UseMaterial(_materialId);
+        _renderer->Render(indices, vertices, normals, UVs);
+    }
+
+private:
+    ADSRenderer *_renderer;
+    IndexValue _materialId;
+    float _tileWidth;
+    float _tileHeight;
+    RawImageInfo *_tilemapImage;
+
+private:
+    void addToVector(std::vector<float> &list, const glm::vec4 &vec)
+    {
+        list.push_back(vec[0]);
+        list.push_back(vec[1]);
+        list.push_back(vec[2]);
+        list.push_back(vec[3]);
+    }
+
+    void addToVector(std::vector<float> &list, const glm::vec3 &vec)
+    {
+        list.push_back(vec[0]);
+        list.push_back(vec[1]);
+        list.push_back(vec[2]);
+    }
+
+    std::vector<float> GetUVsForTile(IndexValue x, IndexValue y)
+    {
+        std::vector<float> UVs;
+
+        unsigned int top, bottom, left, right;
+        top = y * _tileHeight;
+        bottom = (y + 1) * _tileHeight - 1;
+        left = x * _tileWidth;
+        right = (x + 1) * _tileWidth - 1;
+
+        float UVtop, UVbottom, UVleft, UVright;
+        UVleft = (float) left / _tilemapImage->width;
+        UVright = (float) right / _tilemapImage->width;
+        UVtop = (float) top / _tilemapImage->height;
+        UVbottom = (float) bottom / _tilemapImage->height;
+
+        UVs.push_back(UVright);
+        UVs.push_back(UVtop);
+        UVs.push_back(UVleft);
+        UVs.push_back(UVtop);
+        UVs.push_back(UVleft);
+        UVs.push_back(UVbottom);
+
+        UVs.push_back(UVright);
+        UVs.push_back(UVtop);
+        UVs.push_back(UVleft);
+        UVs.push_back(UVbottom);
+        UVs.push_back(UVright);
+        UVs.push_back(UVbottom);
+
+        return UVs;
+    }
+};
+
+class VoxelRenderer
+{
+public:
+    VoxelRenderer(TileRenderer *tileRenderer)
+        : _tileRenderer(tileRenderer)
+    {
+    }
+
+    void Render(IndexValue tileX, IndexValue tileY, const glm::vec3 &position)
+    {
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Up);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Down);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Left);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Right);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Forward);
+        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Backward);
+    }
+
+private:
+    TileRenderer *_tileRenderer;
+};
 
 static Framework::ApplicationState applicationState = {
     .windowName = "Rendering Engine"
@@ -146,7 +380,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     ADSRenderer *adsRenderer = new ADSRenderer();
 
-    adsRenderer->SetViewMatrix(glm::lookAt(glm::vec3( -5.0, 3.0, 10.0),
+    adsRenderer->SetViewMatrix(glm::lookAt(glm::vec3( -3.0, 3.0, 4.0),
                                            glm::vec3( 0.0, 0.0, 0.0),
                                            glm::vec3( 0.0, 1.0, 0.0)));
     adsRenderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
@@ -170,8 +404,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer, keyboardState, mouseState);
 
-    IndexValue tilemapId = adsRenderer->RegisterTileMap(LoadImageFromPNG("assets/minecraft-tiles.png"), 64, 64);
-
+    TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/minecraft-tiles.png"), 64, 64);
+    VoxelRenderer voxelRenderer(&tileRenderer);
 
     ticker.Start(17);
 
@@ -200,9 +434,14 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         adsRenderer->SetModelMatrix(glm::mat4(1.0));
-        adsRenderer->RenderTile(tilemapId, 1, 0);
-        adsRenderer->SetModelMatrix(glm::rotate(glm::mat4(1.0f), -90.0f * PI / 180, glm::vec3(0.0f, 1.0f, 0.0f)));
-        adsRenderer->RenderTile(tilemapId, 2, 0);
+        voxelRenderer.Render(1, 0, glm::vec3(3.0f, 0.0f, 0.0f));
+        voxelRenderer.Render(1, 0, glm::vec3(3.0f, 1.0f, 0.0f));
+        voxelRenderer.Render(1, 0, glm::vec3(3.0f, 2.0f, 0.0f));
+        voxelRenderer.Render(1, 0, glm::vec3(2.0f, 0.0f, 0.0f));
+        voxelRenderer.Render(1, 0, glm::vec3(2.0f, 1.0f, 0.0f));
+        voxelRenderer.Render(1, 0, glm::vec3(2.0f, 2.0f, 0.0f));
+        voxelRenderer.Render(2, 0, glm::vec3(2.0f, 2.0f, 1.0f));
+        voxelRenderer.Render(2, 0, glm::vec3(2.0f, 1.0f, 1.0f));
         simpleEntity->update();
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
