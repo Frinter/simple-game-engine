@@ -70,13 +70,13 @@ namespace Framework
 
             void GetSize(unsigned int *width, unsigned int *height);
             void Resize(unsigned int width, unsigned int height);
-            
+
         private:
             System::Mutex *m_mutex;
             unsigned int _width;
             unsigned int _height;
         };
-        
+
     public:
         WindowController(ApplicationContext *applicationContext);
 
@@ -92,6 +92,8 @@ namespace Framework
         virtual ReadingKeyboardState *GetKeyStateReader();
         virtual ReadingMouseState *GetMouseReader();
         virtual ReadingWindowState *GetWindowReader();
+
+        virtual void SetMousePosition(unsigned int posX, unsigned int posY);
 
         virtual void OnWindowReady();
         virtual void OnWindowClose();
