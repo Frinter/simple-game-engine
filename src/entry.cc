@@ -520,7 +520,7 @@ public:
             int mouseDeltaX, mouseDeltaY;
             _mouseTracker->GetDeltaPosition(&mouseDeltaX, &mouseDeltaY);
 
-            _rotation += (mouseDeltaX / 5) * (PI / 180);
+            _rotation += ((float)mouseDeltaX / 5) * (PI / 180);
             if (_rotation > TAU)
                 _rotation -= TAU;
             if (_rotation < 0)
