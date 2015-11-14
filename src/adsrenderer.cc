@@ -334,7 +334,7 @@ private:
                      imageInfo->width, imageInfo->height, 0,
                      imageInfo->components, GL_UNSIGNED_BYTE, imageInfo->data);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
         return textureId;
     }
