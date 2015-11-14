@@ -98,7 +98,7 @@ public:
                  SimpleObjectInputComponent *inputComponent)
         : _graphicsComponent(graphicsComponent), _inputComponent(inputComponent)
     {
-        _position = glm::vec3(0.0, -1.0, 0.0);
+        _position = glm::vec3(0.0, 0.0, -6.0);
     }
 
     void update()
@@ -141,11 +141,11 @@ public:
         : _renderer(renderer), _tilemapImage(tilemapImage), _tileWidth(tileWidth), _tileHeight(tileHeight)
     {
         MaterialInfo tilemapMaterialInfo;
-        tilemapMaterialInfo.Ka = glm::vec3(0.0f, 0.0f, 0.0f);
+        tilemapMaterialInfo.Ka = glm::vec3(1.0f, 1.0f, 1.0f);
         tilemapMaterialInfo.Kd = glm::vec3(1.0f, 1.0f, 1.0f);
         tilemapMaterialInfo.Ks = glm::vec3(0.0f, 0.0f, 0.0f);
         tilemapMaterialInfo.shininess = 1.0f;
-        tilemapMaterialInfo.Kd_imageInfo = LoadImageFromPNG("assets/minecraft-tiles.png");
+        tilemapMaterialInfo.Kd_imageInfo = tilemapImage;
 
         _materialId = _renderer->RegisterMaterial(tilemapMaterialInfo);
     }
@@ -221,13 +221,13 @@ public:
             break;
 
         case Direction::Right:
-            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
-            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
-            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
-
-            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
-            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
             addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
 
             addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
             addToVector(normals, glm::vec3( 1.0f, 0.0f, 0.0f));
@@ -240,12 +240,12 @@ public:
 
         case Direction::Forward:
             addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
-            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 1.0f, 0.0f));
             addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
 
             addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 1.0f, 0.0f));
             addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 1.0f, 0.0f));
-            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 1.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 1.0f, 0.0f));
 
             addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
             addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
@@ -257,13 +257,13 @@ public:
             break;
 
         case Direction::Backward:
-            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
             addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
             addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
-
-            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-            addToVector(vertices, location + glm::vec4(1.0f,-1.0f, 0.0f, 0.0f));
             addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 0.0f, 0.0f));
+
+            addToVector(vertices, location + glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f,-1.0f, 0.0f, 0.0f));
+            addToVector(vertices, location + glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
             addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
             addToVector(normals, glm::vec3( 0.0f, 0.0f, 1.0f));
@@ -282,8 +282,8 @@ public:
 private:
     ADSRenderer *_renderer;
     IndexValue _materialId;
-    float _tileWidth;
-    float _tileHeight;
+    unsigned int _tileWidth;
+    unsigned int _tileHeight;
     RawImageInfo *_tilemapImage;
 
 private:
@@ -308,29 +308,29 @@ private:
 
         unsigned int top, bottom, left, right;
         top = y * _tileHeight;
-        bottom = (y + 1) * _tileHeight - 1;
+        bottom = (y + 1) * _tileHeight;
         left = x * _tileWidth;
-        right = (x + 1) * _tileWidth - 1;
+        right = (x + 1) * _tileWidth;
 
         float UVtop, UVbottom, UVleft, UVright;
-        UVleft = (float) left / _tilemapImage->width;
-        UVright = (float) right / _tilemapImage->width;
-        UVtop = (float) top / _tilemapImage->height;
-        UVbottom = (float) bottom / _tilemapImage->height;
+        UVleft = 0.995 * (float) left / _tilemapImage->width + 0.002f;
+        UVright = 0.995 * (float) right / _tilemapImage->width + 0.002f;
+        UVtop = 0.995 * (float) top / _tilemapImage->height + 0.002f;
+        UVbottom = 0.995 * (float) bottom / _tilemapImage->height + 0.002f;
 
+        UVs.push_back(UVleft);
+        UVs.push_back(UVtop);
+        UVs.push_back(UVleft);
+        UVs.push_back(UVbottom);
         UVs.push_back(UVright);
-        UVs.push_back(UVtop);
-        UVs.push_back(UVleft);
-        UVs.push_back(UVtop);
-        UVs.push_back(UVleft);
         UVs.push_back(UVbottom);
 
+        UVs.push_back(UVleft);
+        UVs.push_back(UVtop);
+        UVs.push_back(UVright);
+        UVs.push_back(UVbottom);
         UVs.push_back(UVright);
         UVs.push_back(UVtop);
-        UVs.push_back(UVleft);
-        UVs.push_back(UVbottom);
-        UVs.push_back(UVright);
-        UVs.push_back(UVbottom);
 
         return UVs;
     }
@@ -375,15 +375,16 @@ public:
     void update()
     {
         _renderer->SetModelMatrix(glm::mat4(1.0));
-        renderVoxel(1, 0, glm::vec3(3.0f, 0.0f, 0.0f));
-        renderVoxel(1, 0, glm::vec3(3.0f, 1.0f, 0.0f));
-        renderVoxel(1, 0, glm::vec3(3.0f, 2.0f, 0.0f));
-        renderVoxel(1, 0, glm::vec3(2.0f, 0.0f, 0.0f));
-        renderVoxel(1, 0, glm::vec3(2.0f, 1.0f, 0.0f));
-        renderVoxel(1, 0, glm::vec3(2.0f, 2.0f, 0.0f));
-        renderVoxel(2, 0, glm::vec3(2.0f, 2.0f, 1.0f));
-        renderVoxel(2, 0, glm::vec3(2.0f, 1.0f, 1.0f));
-    }
+        renderVoxel(0, 0, glm::vec3(-1.0f,-1.0f, 0.0f));
+        renderVoxel(0, 0, glm::vec3( 0.0f,-1.0f, 0.0f));
+        renderVoxel(0, 0, glm::vec3( 1.0f,-1.0f, 0.0f));
+        renderVoxel(0, 0, glm::vec3(-1.0f, 0.0f, 0.0f));
+        renderVoxel(0, 0, glm::vec3( 0.0f, 0.0f, 0.0f));  
+        renderVoxel(0, 0, glm::vec3( 1.0f, 0.0f, 0.0f));
+        renderVoxel(0, 0, glm::vec3(-1.0f, 1.0f, 0.0f)); 
+        renderVoxel(0, 0, glm::vec3( 0.0f, 1.0f, 0.0f));
+        renderVoxel(0, 0, glm::vec3( 1.0f, 1.0f, 0.0f));
+   }
 
 private:
     ADSRenderer *_renderer;
@@ -503,13 +504,13 @@ public:
         : _mouseTracker(mouseTracker), _mouseState(mouseState),
           _renderer(renderer)
     {
-        _position = glm::vec3( -3.0, 3.0, 4.0);
+        _position = glm::vec3( 5.0f, 1.5f, 5.0f);
         _rotation = 0;
         _renderer->SetViewMatrix(glm::lookAt(_position,
-                                             glm::vec3( 0.0, 0.0, 0.0),
+                                             glm::vec3( 0.5, 0.5, 0.5),
                                              glm::vec3( 0.0, 1.0, 0.0)));
-        _renderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
-                                                  -4.0f, 4.0f,
+        _renderer->SetProjectionMatrix(glm::ortho(-4.0f, 4.0f,
+                                                  -3.0f, 3.0f,
                                                   1.0f, 100.0f));
     }
 
@@ -520,7 +521,7 @@ public:
             int mouseDeltaX, mouseDeltaY;
             _mouseTracker->GetDeltaPosition(&mouseDeltaX, &mouseDeltaY);
 
-            _rotation += ((float)mouseDeltaX / 5) * (PI / 180);
+            _rotation += ((float)mouseDeltaX / 10) * (PI / 180);
             if (_rotation > TAU)
                 _rotation -= TAU;
             if (_rotation < 0)
@@ -530,8 +531,8 @@ public:
                                                     _rotation,
                                                     glm::vec3( 0.0, 1.0, 0.0));
             _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
-                                                 glm::vec3( 0.0, 0.0, 0.0),
-                                                 glm::vec3( 0.0, 1.0, 0.0)));        
+                                                 glm::vec3( 0.5, 0.5, 0.5),
+                                                 glm::vec3( 0.0, 1.0, 0.0)));
         }
     }
     
@@ -565,7 +566,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     LightInfo lightInfo;
     lightInfo.position = glm::vec4(-2.0, 5.0, 4.0, 1.0);
-    lightInfo.La = glm::vec3(0.0, 0.0, 0.0);
+    lightInfo.La = glm::vec3(0.5, 0.5, 0.5);
     lightInfo.Ld = glm::vec3(1.0, 1.0, 1.0);
     lightInfo.Ls = glm::vec3(0.0, 0.0, 0.0);
     adsRenderer->SetLight(lightInfo);
@@ -581,7 +582,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer, keyboardState, mouseState);
 
-    TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/minecraft-tiles.png"), 64, 64);
+    TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/colors.png"), 16, 16);
     VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer);
 
     MouseTracker *mouseTracker = new MouseTracker(windowController);
