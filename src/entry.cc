@@ -506,12 +506,13 @@ public:
     {
         _position = glm::vec3( 5.0f, 1.5f, 5.0f);
         _rotation = 0;
+        _zoom = 10.0f;
+        _orthoParamX = 4.0f;
+        _orthoParamY = 3.0f;
         _renderer->SetViewMatrix(glm::lookAt(_position,
                                              glm::vec3( 0.5, 0.5, 0.5),
                                              glm::vec3( 0.0, 1.0, 0.0)));
-        _renderer->SetProjectionMatrix(glm::ortho(-4.0f, 4.0f,
-                                                  -3.0f, 3.0f,
-                                                  1.0f, 100.0f));
+        setProjectionMatrix();
     }
 
     void update()
@@ -534,6 +535,13 @@ public:
                                                  glm::vec3( 0.5, 0.5, 0.5),
                                                  glm::vec3( 0.0, 1.0, 0.0)));
         }
+
+        int scrollDelta = _mouseState->GetScrollDelta();
+        if (scrollDelta != 0)
+        {
+            _zoom += -0.1f * scrollDelta;
+            setProjectionMatrix();
+        }
     }
     
 private:
@@ -543,6 +551,19 @@ private:
 
     glm::vec3 _position;
     float _rotation;
+    float _zoom;
+    float _orthoParamX;
+    float _orthoParamY;
+
+private:
+    void setProjectionMatrix()
+    {
+        float xParam = _zoom * _orthoParamX;
+        float yParam = _zoom * _orthoParamY;
+        _renderer->SetProjectionMatrix(glm::ortho(-xParam, xParam,
+                                                  -yParam, yParam,
+                                                  1.0f, 100.0f));
+    }
 };
 
 static Framework::ApplicationState applicationState = {
@@ -599,12 +620,6 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
             adsRenderer->SetProjectionMatrix(glm::ortho(-6.0f, 6.0f,
                                                         -4.0f, 4.0f,
                                                         1.0f, 100.0f));
-        }
-
-        int scrollDelta = mouseState->GetScrollDelta();
-        if (scrollDelta != 0)
-        {
-            cout << "scroll: " << scrollDelta << endl;
         }
 
         if (keyboardState->GetKeyState(System::KeyCode::KeyQ) == Framework::KeyState::Pressed)
