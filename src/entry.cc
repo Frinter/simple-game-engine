@@ -327,10 +327,9 @@ public:
         _zoom = 5.0f;
         _orthoParamX = 4.0f;
         _orthoParamY = 3.0f;
-        _renderer->SetViewMatrix(glm::lookAt(_position,
-                                             glm::vec3( 0.5, 0.5, 0.5),
-                                             glm::vec3( 0.0, 1.0, 0.0)));
+
         setProjectionMatrix();
+        setPosition();
     }
 
     void update()
@@ -345,13 +344,6 @@ public:
                 _rotation -= TAU;
             if (_rotation < 0)
                 _rotation += TAU;
-            
-            glm::vec3 rotatedPosition = glm::rotate(_position,
-                                                    _rotation,
-                                                    glm::vec3( 0.0, 1.0, 0.0));
-            _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
-                                                 glm::vec3( 0.5, 0.5, 0.5),
-                                                 glm::vec3( 0.0, 1.0, 0.0)));
         }
 
         int scrollDelta = _mouseState->GetScrollDelta();
@@ -360,6 +352,8 @@ public:
             _zoom += -0.1f * scrollDelta;
             setProjectionMatrix();
         }
+
+        setPosition();
     }
     
 private:
@@ -374,6 +368,17 @@ private:
     float _orthoParamY;
 
 private:
+    void setPosition()
+    {
+        glm::vec3 adjustedPosition = _zoom * _position;
+        glm::vec3 rotatedPosition = glm::rotate(adjustedPosition,
+                                                _rotation,
+                                                glm::vec3( 0.0, 1.0, 0.0));
+        _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
+                                             glm::vec3( 0.5, 0.5, 0.5),
+                                             glm::vec3( 0.0, 1.0, 0.0)));
+    }
+
     void setProjectionMatrix()
     {
         float xParam = _zoom * _orthoParamX;
