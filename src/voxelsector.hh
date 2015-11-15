@@ -7,43 +7,7 @@
 #include "tilerenderer.hh"
 #include "types.hh"
 #include "voxels.hh"
-
-class VoxelCollection
-{
-public:
-    VoxelCollection(VoxelRepository *voxelRepository)
-        : _repository(voxelRepository)
-    {
-        _voxels = new const Voxel*[VOXEL_SECTOR_ARRAY_SIZE];
-        for (int i = 0; i < VOXEL_SECTOR_ARRAY_SIZE; ++i)
-        {
-            _voxels[i] = NULL;
-        }
-    }
-
-    const Voxel *GetVoxel(const Position &position) const
-    {
-        return *getVoxelAtIndex(position);
-    }
-
-    void SetVoxel(const Position &position, IndexValue type)
-    {
-        *getVoxelAtIndex(position) = _repository->GetVoxel(type);
-    }
-    
-private:
-    VoxelRepository *_repository;
-
-    const Voxel **_voxels;
-
-private:
-    const Voxel **getVoxelAtIndex(const Position &position) const
-    {
-        return &_voxels[VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE * position.y +
-                        VOXEL_SECTOR_SIZE * position.z +
-                        position.x];
-    }
-};
+#include "voxelsectorexporter.hh"
 
 class VoxelSectorGraphicsComponent
 {
@@ -52,7 +16,7 @@ public:
         : _renderer(renderer), _tileRenderer(tileRenderer)
     {
     }
-    
+
     void update(const VoxelCollection &collection, const Position &sectorPosition)
     {
         glm::vec3 translation = glm::vec3(sectorPosition.x * VOXEL_SECTOR_SIZE,
@@ -140,7 +104,7 @@ public:
           _sectorPosition(sectorPosition)
     {
     }
-    
+
     void update()
     {
         _graphicsComponent->update(_collection, _sectorPosition);
@@ -149,6 +113,11 @@ public:
     void SetVoxel(const Position &position, IndexValue type)
     {
         _collection.SetVoxel(position, type);
+    }
+
+    void Export(const std::string &fileName)
+    {
+        VoxelSectorExporter().ExportSector(_collection, fileName);
     }
 
 private:
