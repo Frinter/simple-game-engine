@@ -27,6 +27,7 @@
 #include "tilerenderer.hh"
 #include "types.hh"
 #include "voxels.hh"
+#include "voxelsector.hh"
 
 using std::cout;
 using std::endl;
@@ -126,126 +127,6 @@ SimpleObject *CreateSimpleObject(IRenderer *renderer,
     return new SimpleObject(graphicsComponent, inputComponent);
 }
 
-class VoxelCollection
-{
-public:
-    VoxelCollection(VoxelRepository *voxelRepository)
-        : _repository(voxelRepository)
-    {
-        _voxels = new const Voxel*[VOXEL_SECTOR_ARRAY_SIZE];
-        for (int i = 0; i < VOXEL_SECTOR_ARRAY_SIZE; ++i)
-        {
-            _voxels[i] = NULL;
-        }
-    }
-
-    const Voxel *GetVoxel(IndexValue x, IndexValue y, IndexValue z) const
-    {
-        return _voxels[VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE * y +
-                       VOXEL_SECTOR_SIZE * z +
-                       x];
-    }
-
-    void SetVoxel(IndexValue x, IndexValue y, IndexValue z, IndexValue type)
-    {
-        *getVoxelAtIndex(x, y, z) = _repository->GetVoxel(type);
-    }
-    
-private:
-    VoxelRepository *_repository;
-
-    const Voxel **_voxels;
-
-private:
-    const Voxel **getVoxelAtIndex(IndexValue x, IndexValue y, IndexValue z)
-    {
-        return &_voxels[VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE * y +
-                        VOXEL_SECTOR_SIZE * z +
-                        x];
-    }
-};
-
-class VoxelSectorGraphicsComponent
-{
-public:
-    VoxelSectorGraphicsComponent(ADSRenderer *renderer, TileRenderer *tileRenderer)
-        : _renderer(renderer), _tileRenderer(tileRenderer)
-    {
-    }
-    
-    void update(const VoxelCollection &collection)
-    {
-        _renderer->SetModelMatrix(glm::mat4(1.0));
-
-        int x, y, z;
-        for (x = 0; x < VOXEL_SECTOR_SIZE; ++x)
-        {
-            for (y = 0; y < VOXEL_SECTOR_SIZE; ++y)
-            {
-                for (z = 0; z < VOXEL_SECTOR_SIZE; ++z)
-                {
-                    const Voxel *voxel = collection.GetVoxel(x, y, z);
-                    if (voxel != NULL)
-                    {
-                        renderVoxel(voxel->tileX, voxel->tileY,
-                                    glm::vec3(x, y, z));
-                    }
-                }
-            }
-        }
-   }
-
-private:
-    ADSRenderer *_renderer;
-    TileRenderer *_tileRenderer;
-
-private:
-    void renderVoxel(IndexValue tileX, IndexValue tileY, const glm::vec3 &position)
-    {
-        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Up);
-        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Down);
-        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Left);
-        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Right);
-        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Forward);
-        _tileRenderer->Render(tileX, tileY, glm::vec4(position, 1.0), Direction::Backward);
-    }
-};
-
-class VoxelSector : public Entity
-{
-public:
-    VoxelSector(VoxelSectorGraphicsComponent *graphicsComponent,
-                VoxelRepository *voxelRepository)
-        : _graphicsComponent(graphicsComponent),
-          _collection(voxelRepository)
-    {
-    }
-    
-    void update()
-    {
-        _graphicsComponent->update(_collection);
-    }
-
-    void SetVoxel(IndexValue x, IndexValue y, IndexValue z, IndexValue type)
-    {
-        _collection.SetVoxel(x, y, z, type);
-    }
-    
-private:
-    VoxelSectorGraphicsComponent *_graphicsComponent;
-
-    VoxelCollection _collection;
-};
-
-VoxelSector *CreateVoxelSector(ADSRenderer *renderer, TileRenderer *tileRenderer,
-                               VoxelRepository *voxelRepository)
-{
-    VoxelSectorGraphicsComponent *graphicsComponent = new VoxelSectorGraphicsComponent(renderer, tileRenderer);
-    VoxelSector *sector = new VoxelSector(graphicsComponent, voxelRepository);
-
-    return sector;
-}
-
 class MouseTracker : public Entity
 {
 public:
@@ -264,7 +145,7 @@ public:
 
     void update()
     {
-        Framework::KeyState mouseButtonState = _mouseState->GetMouseButtonState(System::MouseButton::Button1);
+        Framework::KeyState mouseButtonState = _mouseState->GetMouseButtonState(System::MouseButton::Button2);
         unsigned int mouseX = _mouseState->GetMouseX();
         unsigned int mouseY = _mouseState->GetMouseY();
 
@@ -303,7 +184,7 @@ public:
 
         _previousMouseButtonState = mouseButtonState;
     }
-    
+
 private:
     Framework::IWindowController *_windowController;
     Framework::ReadingMouseState *_mouseState;
@@ -334,7 +215,7 @@ public:
 
     void update()
     {
-        if (_mouseState->GetMouseButtonState(System::MouseButton::Button1) == Framework::KeyState::Pressed)
+        if (_mouseState->GetMouseButtonState(System::MouseButton::Button2) == Framework::KeyState::Pressed)
         {
             int mouseDeltaX, mouseDeltaY;
             _mouseTracker->GetDeltaPosition(&mouseDeltaX, &mouseDeltaY);
@@ -355,7 +236,7 @@ public:
 
         setPosition();
     }
-    
+
 private:
     MouseTracker *_mouseTracker;
     Framework::ReadingMouseState *_mouseState;
@@ -375,7 +256,7 @@ private:
                                                 _rotation,
                                                 glm::vec3( 0.0, 1.0, 0.0));
         _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
-                                             glm::vec3( 0.5, 0.5, 0.5),
+                                             glm::vec3( 0.0, 0.0, 0.0),
                                              glm::vec3( 0.0, 1.0, 0.0)));
     }
 
@@ -432,18 +313,34 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     voxelRepository.AddVoxel(GenerateVoxel(0,1));
     voxelRepository.AddVoxel(GenerateVoxel(1,0));
     voxelRepository.AddVoxel(GenerateVoxel(1,1));
-    
-    VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer, &voxelRepository);
-    sector->SetVoxel(0, 0, 0, 0);
-    sector->SetVoxel(1, 0, 0, 0);
-    sector->SetVoxel(0, 1, 0, 0);
-    sector->SetVoxel(1, 2, 0, 1);
-    sector->SetVoxel(1, 2, 1, 2);
-    sector->SetVoxel(4, 2, 3, 3);
-    
+
     MouseTracker *mouseTracker = new MouseTracker(windowController);
     Camera *camera = new Camera(mouseTracker, mouseState, adsRenderer);
     ticker.Start(17);
+
+    std::vector<Entity*> entities;
+
+    entities.push_back(simpleEntity);
+
+    VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer,
+                                            &voxelRepository, Position(0, 0, 0));
+    sector->SetVoxel(Position(0, 0, 0), 0);
+    sector->SetVoxel(Position(1, 0, 0), 1);
+    sector->SetVoxel(Position(2, 0, 0), 2);
+    sector->SetVoxel(Position(3, 0, 0), 1);
+    sector->SetVoxel(Position(4, 0, 0), 3);
+
+    entities.push_back(sector);
+
+    sector = CreateVoxelSector(adsRenderer, &tileRenderer,
+                               &voxelRepository, Position(-1, 0, 0));
+    sector->SetVoxel(Position(15, 0, 0), 0);
+    sector->SetVoxel(Position(13, 0, 0), 1);
+    sector->SetVoxel(Position(12, 0, 0), 2);
+    sector->SetVoxel(Position(11, 0, 0), 1);
+    sector->SetVoxel(Position(10, 0, 0), 3);
+
+    entities.push_back(sector);
 
     while (!applicationContext->IsClosing())
     {
@@ -465,8 +362,12 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         mouseTracker->update();
         camera->update();
-        sector->update();
-        simpleEntity->update();
+
+        for (int i = 0; i < entities.size(); ++i)
+        {
+            entities[i]->update();
+        }
+
         windowController->SwapBuffers();
         ticker.WaitUntilNextTick();
     }
