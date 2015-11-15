@@ -35,42 +35,6 @@ using std::endl;
 const float PI = 3.1415926;
 const float TAU = 2 * PI;
 
-class SimpleObjectInputComponent
-{
-public:
-    SimpleObjectInputComponent(Framework::ReadingKeyboardState *keyboardState,
-                               Framework::ReadingMouseState *mouseState)
-        : _keyboardState(keyboardState), _mouseState(mouseState)
-    {
-        _velocity = 0.02;
-    }
-
-    void update(glm::vec3 *position)
-    {
-        if (_keyboardState->GetKeyState(System::KeyCode::KeyUpArrow) == Framework::KeyState::Pressed)
-        {
-            *position = glm::vec3((*position)[0], (*position)[1] + _velocity, (*position)[2]);
-        }
-        if (_keyboardState->GetKeyState(System::KeyCode::KeyDownArrow) == Framework::KeyState::Pressed)
-        {
-            *position = glm::vec3((*position)[0], (*position)[1] - _velocity, (*position)[2]);
-        }
-        if (_keyboardState->GetKeyState(System::KeyCode::KeyLeftArrow) == Framework::KeyState::Pressed)
-        {
-            *position = glm::vec3((*position)[0] - _velocity, (*position)[1], (*position)[2]);
-        }
-        if (_keyboardState->GetKeyState(System::KeyCode::KeyRightArrow) == Framework::KeyState::Pressed)
-        {
-            *position = glm::vec3((*position)[0] + _velocity, (*position)[1], (*position)[2]);
-        }
-    }
-
-private:
-    Framework::ReadingKeyboardState *_keyboardState;
-    Framework::ReadingMouseState *_mouseState;
-    float _velocity;
-};
-
 class SimpleObjectGraphicsComponent
 {
 public:
@@ -94,40 +58,147 @@ private:
     Model *_model;
 };
 
-class SimpleObject : public Entity
+class Command
 {
 public:
-    SimpleObject(SimpleObjectGraphicsComponent *graphicsComponent,
-                 SimpleObjectInputComponent *inputComponent)
-        : _graphicsComponent(graphicsComponent), _inputComponent(inputComponent)
+    virtual ~Command() {}
+    virtual void Execute() = 0;
+};
+
+class Moveable
+{
+public:
+    virtual ~Moveable() {}
+    virtual void Move(float x, float y, float z) = 0;
+    virtual void Rotate(float radians) = 0;
+};
+
+class SimpleObject : public Entity, public Moveable
+{
+public:
+    SimpleObject(SimpleObjectGraphicsComponent *graphicsComponent)
+        : _graphicsComponent(graphicsComponent)
     {
         _position = glm::vec3(0.0, 0.0, -6.0);
     }
 
     void update()
     {
-        _inputComponent->update(&_position);
         _graphicsComponent->update(_position);
+    }
+
+    void Move(float x, float y, float z)
+    {
+        _position = glm::vec3((_position)[0] + x, (_position)[1] + y, (_position)[2] + z);
+    }
+
+    void Rotate(float radians)
+    {
     }
 
 public:
     SimpleObjectGraphicsComponent *_graphicsComponent;
-    SimpleObjectInputComponent *_inputComponent;
 
     glm::vec3 _position;
 };
 
-SimpleObject *CreateSimpleObject(IRenderer *renderer,
-                                 Framework::ReadingKeyboardState *keyboardState,
-                                 Framework::ReadingMouseState *mouseState)
+SimpleObject *CreateSimpleObject(IRenderer *renderer)
 {
     SimpleObjectGraphicsComponent *graphicsComponent = new SimpleObjectGraphicsComponent(renderer);
-    SimpleObjectInputComponent *inputComponent = new SimpleObjectInputComponent(keyboardState, mouseState);
 
-    return new SimpleObject(graphicsComponent, inputComponent);
+    return new SimpleObject(graphicsComponent);
 }
 
-class MouseTracker : public Entity
+class MoveCommand : public Command
+{
+public:
+    MoveCommand(Moveable *moveable, float x, float y, float z)
+        : _moveable(moveable), _x(x), _y(y), _z(z)
+    {
+    }
+
+    void Execute()
+    {
+        _moveable->Move(_x, _y, _z);
+    }
+
+private:
+    Moveable *_moveable;
+    float _x;
+    float _y;
+    float _z;
+};
+
+class Camera : public Moveable
+{
+public:
+    Camera(ADSRenderer *renderer)
+        : _renderer(renderer)
+    {
+        _position = glm::vec3( 5.0f, 1.5f, 5.0f);
+        _rotation = 0;
+        _zoom = 5.0f;
+        _orthoParamX = 4.0f;
+        _orthoParamY = 3.0f;
+
+        setProjectionMatrix();
+        setPosition();
+    }
+
+    void Move(float x, float y, float z)
+    {
+    }
+
+    void Rotate(float radians)
+    {
+        _rotation += radians;
+        if (_rotation > TAU)
+            _rotation -= TAU;
+        if (_rotation < 0)
+            _rotation += TAU;
+
+        setPosition();
+    }
+
+    void Zoom(float delta)
+    {
+        _zoom += delta;
+        setProjectionMatrix();
+        setPosition();
+    }
+
+private:
+    ADSRenderer *_renderer;
+
+    glm::vec3 _position;
+    float _rotation;
+    float _zoom;
+    float _orthoParamX;
+    float _orthoParamY;
+
+private:
+    void setPosition()
+    {
+        glm::vec3 adjustedPosition = _zoom * _position;
+        glm::vec3 rotatedPosition = glm::rotate(adjustedPosition,
+                                                _rotation,
+                                                glm::vec3( 0.0, 1.0, 0.0));
+        _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
+                                             glm::vec3( 0.0, 0.0, 0.0),
+                                             glm::vec3( 0.0, 1.0, 0.0)));
+    }
+
+    void setProjectionMatrix()
+    {
+        float xParam = _zoom * _orthoParamX;
+        float yParam = _zoom * _orthoParamY;
+        _renderer->SetProjectionMatrix(glm::ortho(-xParam, xParam,
+                                                  -yParam, yParam,
+                                                  1.0f, 100.0f));
+    }
+};
+
+class MouseTracker
 {
 public:
     MouseTracker(Framework::IWindowController *windowController)
@@ -143,11 +214,15 @@ public:
         *deltaY = _mouseDeltaY;
     }
 
-    void update()
+    void update(Camera *camera)
     {
         Framework::KeyState mouseButtonState = _mouseState->GetMouseButtonState(System::MouseButton::Button2);
         unsigned int mouseX = _mouseState->GetMouseX();
         unsigned int mouseY = _mouseState->GetMouseY();
+
+        int scrollDelta = _mouseState->GetScrollDelta();
+        if (scrollDelta != 0)
+            camera->Zoom(-0.1f * scrollDelta);
 
         if (mouseButtonState == Framework::KeyState::Pressed)
         {
@@ -166,6 +241,8 @@ public:
 
                 mouseX = _mouseState->GetMouseX();
                 mouseY = _mouseState->GetMouseY();
+
+                camera->Rotate(((float)_mouseDeltaX / 10) * (PI / 180));
             }
             else
             {
@@ -195,79 +272,76 @@ private:
     int _mouseDeltaX, _mouseDeltaY;
 };
 
-class Camera : public Entity
+class ButtonState
 {
 public:
-    Camera(MouseTracker *mouseTracker, Framework::ReadingMouseState *mouseState,
-        ADSRenderer *renderer)
-        : _mouseTracker(mouseTracker), _mouseState(mouseState),
-          _renderer(renderer)
+    ButtonState(System::KeyCode key, Framework::KeyState state)
+        : _key(key), _state(state)
     {
-        _position = glm::vec3( 5.0f, 1.5f, 5.0f);
-        _rotation = 0;
-        _zoom = 5.0f;
-        _orthoParamX = 4.0f;
-        _orthoParamY = 3.0f;
-
-        setProjectionMatrix();
-        setPosition();
     }
 
-    void update()
+    System::KeyCode GetKey() const
     {
-        if (_mouseState->GetMouseButtonState(System::MouseButton::Button2) == Framework::KeyState::Pressed)
-        {
-            int mouseDeltaX, mouseDeltaY;
-            _mouseTracker->GetDeltaPosition(&mouseDeltaX, &mouseDeltaY);
+        return _key;
+    }
 
-            _rotation += ((float)mouseDeltaX / 10) * (PI / 180);
-            if (_rotation > TAU)
-                _rotation -= TAU;
-            if (_rotation < 0)
-                _rotation += TAU;
-        }
-
-        int scrollDelta = _mouseState->GetScrollDelta();
-        if (scrollDelta != 0)
-        {
-            _zoom += -0.1f * scrollDelta;
-            setProjectionMatrix();
-        }
-
-        setPosition();
+    Framework::KeyState GetState() const
+    {
+        return _state;
     }
 
 private:
-    MouseTracker *_mouseTracker;
+    System::KeyCode _key;
+    Framework::KeyState _state;
+};
+
+class InputHandler
+{
+private:
+    class StateHandler
+    {
+    public:
+        StateHandler(const ButtonState &_state, Command *_command)
+            : state(_state), command(_command)
+        {
+        }
+
+        ButtonState state;
+        Command *command;
+    };
+
+public:
+    InputHandler(Framework::ReadingKeyboardState *keyboardState,
+                 Framework::ReadingMouseState *mouseState,
+                 Framework::ReadingWindowState *windowState)
+        : _keyboardState(keyboardState),
+          _mouseState(mouseState),
+          _windowState(windowState)
+    {
+    }
+
+    void Update()
+    {
+        for (int i = 0; i < _handlers.size(); ++i)
+        {
+            StateHandler handler = _handlers[i];
+
+            if (_keyboardState->GetKeyState(handler.state.GetKey()) == handler.state.GetState())
+                handler.command->Execute();
+        }
+    }
+
+    void SetHandler(const ButtonState &state, Command *command)
+    {
+        _handlers.push_back(StateHandler(state, command));
+    }
+
+private:
+    Framework::ReadingKeyboardState *_keyboardState;
     Framework::ReadingMouseState *_mouseState;
-    ADSRenderer *_renderer;
+    Framework::ReadingWindowState *_windowState;
 
-    glm::vec3 _position;
-    float _rotation;
-    float _zoom;
-    float _orthoParamX;
-    float _orthoParamY;
-
-private:
-    void setPosition()
-    {
-        glm::vec3 adjustedPosition = _zoom * _position;
-        glm::vec3 rotatedPosition = glm::rotate(adjustedPosition,
-                                                _rotation,
-                                                glm::vec3( 0.0, 1.0, 0.0));
-        _renderer->SetViewMatrix(glm::lookAt(rotatedPosition,
-                                             glm::vec3( 0.0, 0.0, 0.0),
-                                             glm::vec3( 0.0, 1.0, 0.0)));
-    }
-
-    void setProjectionMatrix()
-    {
-        float xParam = _zoom * _orthoParamX;
-        float yParam = _zoom * _orthoParamY;
-        _renderer->SetProjectionMatrix(glm::ortho(-xParam, xParam,
-                                                  -yParam, yParam,
-                                                  1.0f, 100.0f));
-    }
+    std::vector<StateHandler> _handlers;
 };
 
 static Framework::ApplicationState applicationState = {
@@ -305,7 +379,7 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     unsigned int windowWidth, windowHeight, newWindowWidth, newWindowHeight;
     windowState->GetSize(&windowWidth, &windowHeight);
 
-    Entity *simpleEntity = (Entity *)CreateSimpleObject(renderer, keyboardState, mouseState);
+    SimpleObject *simpleObject = CreateSimpleObject(renderer);
 
     TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/colors.png"), 16, 16);
     VoxelRepository voxelRepository;
@@ -315,12 +389,22 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     voxelRepository.AddVoxel(GenerateVoxel(1,1));
 
     MouseTracker *mouseTracker = new MouseTracker(windowController);
-    Camera *camera = new Camera(mouseTracker, mouseState, adsRenderer);
+    Camera *camera = new Camera(adsRenderer);
     ticker.Start(17);
+
+    InputHandler inputHandler(keyboardState, mouseState, windowState);
+    MoveCommand moveUp(simpleObject, 0.0f, 0.1f, 0.0f);
+    MoveCommand moveDown(simpleObject, 0.0f, -0.1f, 0.0f);
+    inputHandler.SetHandler(ButtonState(System::KeyCode::KeyUpArrow,
+                                        Framework::KeyState::Pressed),
+                            &moveUp);
+    inputHandler.SetHandler(ButtonState(System::KeyCode::KeyDownArrow,
+                                        Framework::KeyState::Pressed),
+                            &moveDown);
 
     std::vector<Entity*> entities;
 
-    entities.push_back(simpleEntity);
+    entities.push_back((Entity*)simpleObject);
 
     VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer,
                                             &voxelRepository, Position(0, 0, 0));
@@ -360,9 +444,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
         }
 
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-        mouseTracker->update();
-        camera->update();
-
+        inputHandler.Update();
+        mouseTracker->update(camera);
         for (int i = 0; i < entities.size(); ++i)
         {
             entities[i]->update();
