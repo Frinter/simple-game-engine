@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "types.hh"
 
 const int VOXEL_SECTOR_SIZE = 16;
@@ -15,14 +17,7 @@ typedef struct Voxel
     IndexValue tileY;
 } Voxel;
 
-Voxel GenerateVoxel(VoxelType type, IndexValue x, IndexValue y)
-{
-    Voxel voxel;
-    voxel.type = type;
-    voxel.tileX = x;
-    voxel.tileY = y;
-    return voxel;
-}
+Voxel GenerateVoxel(VoxelType type, IndexValue x, IndexValue y);
 
 class VoxelRepository
 {

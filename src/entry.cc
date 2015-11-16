@@ -383,10 +383,10 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/colors.png"), 16, 16);
     VoxelRepository voxelRepository;
-    voxelRepository.AddVoxel(GenerateVoxel(0,0));
-    voxelRepository.AddVoxel(GenerateVoxel(0,1));
-    voxelRepository.AddVoxel(GenerateVoxel(1,0));
-    voxelRepository.AddVoxel(GenerateVoxel(1,1));
+    voxelRepository.AddVoxel(GenerateVoxel(1,0,0));
+    voxelRepository.AddVoxel(GenerateVoxel(2,0,1));
+    voxelRepository.AddVoxel(GenerateVoxel(3,1,0));
+    voxelRepository.AddVoxel(GenerateVoxel(4,1,1));
 
     MouseTracker *mouseTracker = new MouseTracker(windowController);
     Camera *camera = new Camera(adsRenderer);
@@ -408,13 +408,15 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer,
                                             &voxelRepository, Position(0, 0, 0));
-    sector->SetVoxel(Position(0, 0, 0), 0);
-    sector->SetVoxel(Position(1, 0, 0), 1);
-    sector->SetVoxel(Position(2, 0, 0), 2);
-    sector->SetVoxel(Position(3, 0, 0), 1);
-    sector->SetVoxel(Position(4, 0, 0), 3);
+    //sector->SetVoxel(Position(0, 0, 0), 0);
+    //sector->SetVoxel(Position(1, 0, 0), 1);
+    //sector->SetVoxel(Position(2, 0, 0), 2);
+    //sector->SetVoxel(Position(3, 0, 0), 1);
+    //sector->SetVoxel(Position(4, 0, 0), 3);
 
     entities.push_back(sector);
+    //sector->Export("test.map");
+    sector->Import("test.map");
 
     sector = CreateVoxelSector(adsRenderer, &tileRenderer,
                                &voxelRepository, Position(-1, 0, 0));

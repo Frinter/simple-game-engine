@@ -100,29 +100,38 @@ public:
                 VoxelRepository *voxelRepository,
                 const Position &sectorPosition)
         : _graphicsComponent(graphicsComponent),
-          _collection(voxelRepository),
+          _repository(voxelRepository),
+          _collection(NULL),
           _sectorPosition(sectorPosition)
     {
+        _collection = new VoxelCollection(_repository);
     }
 
     void update()
     {
-        _graphicsComponent->update(_collection, _sectorPosition);
+        _graphicsComponent->update(*_collection, _sectorPosition);
     }
 
     void SetVoxel(const Position &position, IndexValue type)
     {
-        _collection.SetVoxel(position, type);
+        _collection->SetVoxel(position, type);
     }
 
     void Export(const std::string &fileName)
     {
-        VoxelSectorExporter().ExportSector(_collection, fileName);
+        VoxelSectorExporter().ExportSector(*_collection, fileName);
+    }
+
+    void Import(const std::string &fileName)
+    {
+        delete _collection;
+        _collection = VoxelSectorImporter(_repository).ImportSector(fileName);
     }
 
 private:
     VoxelSectorGraphicsComponent *_graphicsComponent;
-    VoxelCollection _collection;
+    VoxelRepository *_repository;
+    VoxelCollection *_collection;
     Position _sectorPosition;
 };
 
