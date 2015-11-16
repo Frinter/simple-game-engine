@@ -1,17 +1,22 @@
 #include <cstdio>
+#include <iostream>
 
 #include "voxelsectorexporter.hh"
 
 typedef struct VoxelRecord
 {
-    VoxelType type;
+    unsigned char index;
 } VoxelRecord;
 
 IndexValue GetIndexLocation(int x, int y, int z)
 {
-    return x * VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE +
-        z * VOXEL_SECTOR_SIZE +
-        y;
+    return z * VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE +
+        y * VOXEL_SECTOR_SIZE +
+        x;
+}
+
+VoxelSectorExporter::VoxelSectorExporter()
+{
 }
 
 void VoxelSectorExporter::ExportSector(const VoxelCollection &collection, const std::string &fileName)
@@ -22,18 +27,18 @@ void VoxelSectorExporter::ExportSector(const VoxelCollection &collection, const 
 
     std::vector<VoxelRecord> records;
 
-    for (int x = 0; x < VOXEL_SECTOR_SIZE; ++x)
+    for (int z = 0; z < VOXEL_SECTOR_SIZE; ++z)
     {
-        for (int z = 0; z < VOXEL_SECTOR_SIZE; ++z)
+        for (int y = 0; y < VOXEL_SECTOR_SIZE; ++y)
         {
-            for (int y = 0; y < VOXEL_SECTOR_SIZE; ++y)
+            for (int x = 0; x < VOXEL_SECTOR_SIZE; ++x)
             {
                 VoxelRecord record;
                 const Voxel *voxel = collection.GetVoxel(Position(x, y, z));
                 if (voxel == NULL)
-                    record.type = 0;
+                    record.index = 0;
                 else
-                    record.type = voxel->type;
+                    record.index = voxel->id + 1;
                 records.push_back(record);
             }
         }
@@ -63,15 +68,15 @@ VoxelCollection *VoxelSectorImporter::ImportSector(const std::string &fileName)
 
     VoxelCollection *collection = new VoxelCollection(_repository);
 
-    for (int x = 0; x < VOXEL_SECTOR_SIZE; ++x)
+    for (int z = 0; z < VOXEL_SECTOR_SIZE; ++z)
     {
-        for (int z = 0; z < VOXEL_SECTOR_SIZE; ++z)
+        for (int y = 0; y < VOXEL_SECTOR_SIZE; ++y)
         {
-            for (int y = 0; y < VOXEL_SECTOR_SIZE; ++y)
+            for (int x = 0; x < VOXEL_SECTOR_SIZE; ++x)
             {
                 VoxelRecord record = records[GetIndexLocation(x, y, z)];
-                if (record.type != 0)
-                    collection->SetVoxel(Position(x, y, z), record.type - 1);
+                if (record.index != 0)
+                    collection->SetVoxel(Position(x, y, z), record.index - 1);
             }
         }
     }

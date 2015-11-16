@@ -1,6 +1,8 @@
 #pragma once
 
+#include <iostream>
 #include <vector>
+#include <unordered_map>
 
 #include "types.hh"
 
@@ -9,9 +11,11 @@ const int VOXEL_SECTOR_ARRAY_SIZE =
     VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE;
 
 typedef unsigned char VoxelType;
+typedef unsigned char VoxelId;
 
 typedef struct Voxel
 {
+    VoxelId id;
     VoxelType type;
     IndexValue tileX;
     IndexValue tileY;
@@ -24,7 +28,10 @@ class VoxelRepository
 public:
     void AddVoxel(const Voxel &voxel)
     {
-        _voxels.push_back(voxel);
+        Voxel _voxel = voxel;
+        _voxel.id = _voxels.size();
+        _voxels.push_back(_voxel);
+        _voxelMap[_voxel.id] = &_voxels.back();
     }
 
     const Voxel *GetVoxel(IndexValue index)
@@ -32,8 +39,14 @@ public:
         return &_voxels[index];
     }
 
+    const Voxel *GetVoxelById(VoxelId id)
+    {
+        return _voxelMap[id];
+    }
+
 private:
     std::vector<Voxel> _voxels;
+    std::unordered_map<VoxelId, Voxel*> _voxelMap;
 };
 
 class VoxelCollection

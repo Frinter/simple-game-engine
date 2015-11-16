@@ -8,6 +8,8 @@
 class VoxelSectorExporter
 {
 public:
+    VoxelSectorExporter();
+
     void ExportSector(const VoxelCollection &collection, const std::string &fileName);
 };
 
@@ -15,6 +17,7 @@ class VoxelSectorImporter
 {
 public:
     VoxelSectorImporter(VoxelRepository *repository);
+
     VoxelCollection *ImportSector(const std::string &fileName);
 
 private:

@@ -408,19 +408,21 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     VoxelSector *sector = CreateVoxelSector(adsRenderer, &tileRenderer,
                                             &voxelRepository, Position(0, 0, 0));
-    //sector->SetVoxel(Position(0, 0, 0), 0);
-    //sector->SetVoxel(Position(1, 0, 0), 1);
-    //sector->SetVoxel(Position(2, 0, 0), 2);
-    //sector->SetVoxel(Position(3, 0, 0), 1);
-    //sector->SetVoxel(Position(4, 0, 0), 3);
+    // sector->SetVoxel(Position(0, 0, 0), 0);
+    // sector->SetVoxel(Position(1, 0, 0), 1);
+    // sector->SetVoxel(Position(2, 0, 0), 1);
+    // sector->SetVoxel(Position(3, 0, 0), 1);
+    // sector->SetVoxel(Position(4, 0, 0), 1);
+    // sector->SetVoxel(Position(5, 0, 0), 2);
+    // sector->SetVoxel(Position(6, 0, 0), 3);
 
-    entities.push_back(sector);
-    //sector->Export("test.map");
+    // sector->Export("test.map");
     sector->Import("test.map");
+    entities.push_back(sector);
 
     sector = CreateVoxelSector(adsRenderer, &tileRenderer,
                                &voxelRepository, Position(-1, 0, 0));
-    sector->SetVoxel(Position(15, 0, 0), 0);
+    sector->SetVoxel(Position(14, 0, 0), 0);
     sector->SetVoxel(Position(13, 0, 0), 1);
     sector->SetVoxel(Position(12, 0, 0), 2);
     sector->SetVoxel(Position(11, 0, 0), 1);
