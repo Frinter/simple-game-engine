@@ -48,47 +48,31 @@ private:
         const Voxel *voxel = collection.GetVoxel(Position(x, y, z));
         if (voxel != NULL)
         {
-            if (x == 0 || collection.GetVoxel(Position(x-1, y, z)) == NULL)
-            {
-                _tileRenderer->Render(voxel->tileX, voxel->tileY,
-                                      glm::vec4(x, y, z, 1.0),
-                                      Direction::Left);
-            }
+            const VoxelType &type = voxel->_type;
 
-            if (x == VOXEL_SECTOR_SIZE || collection.GetVoxel(Position(x+1, y, z)) == NULL)
-            {
-                _tileRenderer->Render(voxel->tileX, voxel->tileY,
-                                      glm::vec4(x, y, z, 1.0),
-                                      Direction::Right);
-            }
+            _tileRenderer->Render(type.GetTileX(), type.GetTileY(),
+                                  glm::vec4(x, y, z, 1.0),
+                                  Direction::Left);
 
-            if (y == 0 || collection.GetVoxel(Position(x, y-1, z)) == NULL)
-            {
-                _tileRenderer->Render(voxel->tileX, voxel->tileY,
-                                      glm::vec4(x, y, z, 1.0),
-                                      Direction::Up);
-            }
+            _tileRenderer->Render(type.GetTileX(), type.GetTileY(),
+                                  glm::vec4(x, y, z, 1.0),
+                                  Direction::Right);
 
-            if (y == VOXEL_SECTOR_SIZE || collection.GetVoxel(Position(x, y+1, z)) == NULL)
-            {
-                _tileRenderer->Render(voxel->tileX, voxel->tileY,
-                                      glm::vec4(x, y, z, 1.0),
-                                      Direction::Down);
-            }
+            _tileRenderer->Render(type.GetTileX(), type.GetTileY(),
+                                  glm::vec4(x, y, z, 1.0),
+                                  Direction::Up);
 
-            if (z == 0 || collection.GetVoxel(Position(x, y, z-1)) == NULL)
-            {
-                _tileRenderer->Render(voxel->tileX, voxel->tileY,
-                                      glm::vec4(x, y, z, 1.0),
-                                      Direction::Forward);
-            }
+            _tileRenderer->Render(type.GetTileX(), type.GetTileY(),
+                                  glm::vec4(x, y, z, 1.0),
+                                  Direction::Down);
 
-            if (z == VOXEL_SECTOR_SIZE || collection.GetVoxel(Position(x, y, z+1)) == NULL)
-            {
-                _tileRenderer->Render(voxel->tileX, voxel->tileY,
-                                      glm::vec4(x, y, z, 1.0),
-                                      Direction::Backward);
-            }
+            _tileRenderer->Render(type.GetTileX(), type.GetTileY(),
+                                  glm::vec4(x, y, z, 1.0),
+                                  Direction::Forward);
+
+            _tileRenderer->Render(type.GetTileX(), type.GetTileY(),
+                                  glm::vec4(x, y, z, 1.0),
+                                  Direction::Backward);
         }
     }
 };

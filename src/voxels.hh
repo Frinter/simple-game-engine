@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
 #include <unordered_map>
 
@@ -10,28 +9,51 @@ const int VOXEL_SECTOR_SIZE = 16;
 const int VOXEL_SECTOR_ARRAY_SIZE =
     VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE * VOXEL_SECTOR_SIZE;
 
-typedef unsigned char VoxelType;
 typedef unsigned char VoxelId;
+
+class VoxelType
+{
+public:
+    VoxelType(IndexValue tileX, IndexValue tileY)
+        : _tileX(tileX), _tileY(tileY)
+    {
+    }
+
+    IndexValue GetTileX() const
+    {
+        return _tileX;
+    }
+
+    IndexValue GetTileY() const
+    {
+        return _tileY;
+    }
+
+private:
+    IndexValue _tileX;
+    IndexValue _tileY;
+};
 
 typedef struct Voxel
 {
-    VoxelId id;
-    VoxelType type;
-    IndexValue tileX;
-    IndexValue tileY;
-} Voxel;
+    Voxel(const VoxelType &type)
+        : _type(type)
+    {
+    }
 
-Voxel GenerateVoxel(VoxelType type, IndexValue x, IndexValue y);
+    VoxelId id;
+    VoxelType _type;
+} Voxel;
 
 class VoxelRepository
 {
 public:
-    void AddVoxel(const Voxel &voxel)
+    void AddVoxelType(const VoxelType &type)
     {
-        Voxel _voxel = voxel;
-        _voxel.id = _voxels.size();
-        _voxels.push_back(_voxel);
-        _voxelMap[_voxel.id] = &_voxels.back();
+        Voxel voxel(type);
+        voxel.id = _voxels.size();
+        _voxels.push_back(voxel);
+        _voxelMap[voxel.id] = &_voxels.back();
     }
 
     const Voxel *GetVoxel(IndexValue index)

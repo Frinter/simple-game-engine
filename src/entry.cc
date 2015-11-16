@@ -383,10 +383,10 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
 
     TileRenderer tileRenderer(adsRenderer, LoadImageFromPNG("assets/colors.png"), 16, 16);
     VoxelRepository voxelRepository;
-    voxelRepository.AddVoxel(GenerateVoxel(1,0,0));
-    voxelRepository.AddVoxel(GenerateVoxel(2,0,1));
-    voxelRepository.AddVoxel(GenerateVoxel(3,1,0));
-    voxelRepository.AddVoxel(GenerateVoxel(4,1,1));
+    voxelRepository.AddVoxelType(VoxelType(0, 0));
+    voxelRepository.AddVoxelType(VoxelType(0, 1));
+    voxelRepository.AddVoxelType(VoxelType(1, 0));
+    voxelRepository.AddVoxelType(VoxelType(1, 1));
 
     MouseTracker *mouseTracker = new MouseTracker(windowController);
     Camera *camera = new Camera(adsRenderer);
