@@ -336,12 +336,53 @@ public:
         _handlers.push_back(StateHandler(state, command));
     }
 
+    void Clear()
+    {
+        _handlers.clear();
+    }
+
 private:
     Framework::ReadingKeyboardState *_keyboardState;
     Framework::ReadingMouseState *_mouseState;
     Framework::ReadingWindowState *_windowState;
 
     std::vector<StateHandler> _handlers;
+};
+
+class InputHandlerState
+{
+public:
+    virtual ~InputHandlerState();
+    virtual void Enter() = 0;
+};
+
+class TestInputHandlerState
+{
+public:
+    TestInputHandlerState(InputHandler *handler, Moveable *moveable)
+        : _handler(handler), _moveable(moveable),
+          _moveUp(_moveable, 0.0f, 0.1f, 0.0f),
+          _moveDown(_moveable, 0.0f, -0.1f, 0.0f)
+    {
+    }
+
+    void Enter()
+    {
+        _handler->Clear();
+        _handler->SetHandler(ButtonState(System::KeyCode::KeyUpArrow,
+                                         Framework::KeyState::Pressed),
+                             &_moveUp);
+        _handler->SetHandler(ButtonState(System::KeyCode::KeyDownArrow,
+                                         Framework::KeyState::Pressed),
+                             &_moveDown);
+    }
+
+private:
+    InputHandler *_handler;
+    Moveable *_moveable;
+
+    MoveCommand _moveUp;
+    MoveCommand _moveDown;
 };
 
 static Framework::ApplicationState applicationState = {
@@ -393,14 +434,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     ticker.Start(17);
 
     InputHandler inputHandler(keyboardState, mouseState, windowState);
-    MoveCommand moveUp(simpleObject, 0.0f, 0.1f, 0.0f);
-    MoveCommand moveDown(simpleObject, 0.0f, -0.1f, 0.0f);
-    inputHandler.SetHandler(ButtonState(System::KeyCode::KeyUpArrow,
-                                        Framework::KeyState::Pressed),
-                            &moveUp);
-    inputHandler.SetHandler(ButtonState(System::KeyCode::KeyDownArrow,
-                                        Framework::KeyState::Pressed),
-                            &moveDown);
+    TestInputHandlerState testHandlerState(&inputHandler, simpleObject);
+    testHandlerState.Enter();
 
     std::vector<Entity*> entities;
 
