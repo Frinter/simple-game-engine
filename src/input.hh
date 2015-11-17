@@ -2,6 +2,8 @@
 
 #include <framework/platform.hh>
 
+#include "condition.hh"
+
 class ButtonState
 {
 public:
@@ -47,37 +49,7 @@ private:
     Framework::KeyState _state;
 };
 
-class InputCondition
-{
-public:
-    virtual ~InputCondition() {}
-    virtual bool Check() = 0;
-};
-
-class MultiConditionChecker : public InputCondition
-{
-public:
-    bool Check()
-    {
-        for (int i = 0; i < _conditions.size(); ++i)
-        {
-            if (_conditions[i]->Check() == false)
-                return false;
-        }
-
-        return true;
-    }
-
-    void AddCondition(InputCondition *condition)
-    {
-        _conditions.push_back(condition);
-    }
-
-private:
-    std::vector<InputCondition*> _conditions;
-};
-
-class KeyboardInputCondition : public InputCondition
+class KeyboardInputCondition : public Condition
 {
 public:
     KeyboardInputCondition(Framework::ReadingKeyboardState *keyboardState,
@@ -96,7 +68,7 @@ private:
     ButtonState _buttonState;
 };
 
-class MouseInputCondition : public InputCondition
+class MouseInputCondition : public Condition
 {
 public:
     MouseInputCondition(Framework::ReadingMouseState *mouseState,

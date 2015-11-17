@@ -16,6 +16,9 @@
 #include <GL/gl_core_3_3.h>
 
 #include "adsrenderer.hh"
+#include "condition.hh"
+#include "conditionhandler.hh"
+#include "command.hh"
 #include "entity.hh"
 #include "imageloader.hh"
 #include "input.hh"
@@ -58,13 +61,6 @@ public:
 private:
     IRenderer *_renderer;
     Model *_model;
-};
-
-class Command
-{
-public:
-    virtual ~Command() {}
-    virtual void Execute() = 0;
 };
 
 class Moveable
@@ -200,52 +196,7 @@ private:
     }
 };
 
-class ConditionHandler
-{
-public:
-    class StateHandler
-    {
-    public:
-        StateHandler(InputCondition *_condition, Command *_command)
-            : condition(_condition), command(_command)
-        {
-        }
-
-        InputCondition *condition;
-        Command *command;
-    };
-
-public:
-    ConditionHandler()
-    {
-    }
-
-    void Update()
-    {
-        for (int i = 0; i < _handlers.size(); ++i)
-        {
-            StateHandler handler = _handlers[i];
-
-            if (handler.condition->Check())
-                handler.command->Execute();
-        }
-    }
-
-    void SetHandler(InputCondition *condition, Command *command)
-    {
-        _handlers.push_back(StateHandler(condition, command));
-    }
-
-    void Clear()
-    {
-        _handlers.clear();
-    }
-
-private:
-    std::vector<StateHandler> _handlers;
-};
-
-class MouseMovementCondition : public InputCondition
+class MouseMovementCondition : public Condition
 {
 public:
     MouseMovementCondition(MouseTracker *tracker)
@@ -311,7 +262,7 @@ private:
     MouseTracker *_tracker;
 };
 
-class MouseScrollCondition : public InputCondition
+class MouseScrollCondition : public Condition
 {
 public:
     MouseScrollCondition(MouseTracker *mouseTracker)
