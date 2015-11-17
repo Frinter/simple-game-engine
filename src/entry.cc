@@ -18,6 +18,7 @@
 #include "adsrenderer.hh"
 #include "entity.hh"
 #include "imageloader.hh"
+#include "input.hh"
 #include "model.hh"
 #include "objimporter/objimporter.hh"
 #include "objimporter/objparser.hh"
@@ -272,39 +273,9 @@ private:
     int _mouseDeltaX, _mouseDeltaY;
 };
 
-class ButtonState
+class ConditionHandler
 {
 public:
-    ButtonState(System::KeyCode key, Framework::KeyState state)
-        : _key(key), _state(state)
-    {
-    }
-
-    System::KeyCode GetKey() const
-    {
-        return _key;
-    }
-
-    Framework::KeyState GetState() const
-    {
-        return _state;
-    }
-
-private:
-    System::KeyCode _key;
-    Framework::KeyState _state;
-};
-
-class InputHandler
-{
-private:
-    class InputCondition
-    {
-    public:
-        virtual ~InputCondition() {}
-        virtual bool Check() = 0;
-    };
-
     class StateHandler
     {
     public:
@@ -317,32 +288,8 @@ private:
         Command *command;
     };
 
-    class KeyboardInputCondition : public InputCondition
-    {
-    public:
-        KeyboardInputCondition(Framework::ReadingKeyboardState *keyboardState,
-                               const ButtonState &buttonState)
-            : _keyboardState(keyboardState), _buttonState(buttonState)
-        {
-        }
-
-        bool Check()
-        {
-            return _keyboardState->GetKeyState(_buttonState.GetKey()) == _buttonState.GetState();
-        }
-
-    private:
-        Framework::ReadingKeyboardState *_keyboardState;
-        ButtonState _buttonState;
-    };
-
 public:
-    InputHandler(Framework::ReadingKeyboardState *keyboardState,
-                 Framework::ReadingMouseState *mouseState,
-                 Framework::ReadingWindowState *windowState)
-        : _keyboardState(keyboardState),
-          _mouseState(mouseState),
-          _windowState(windowState)
+    ConditionHandler()
     {
     }
 
@@ -357,32 +304,18 @@ public:
         }
     }
 
-    void SetHandler(const ButtonState &state, Command *command)
+    void SetHandler(InputCondition *condition, Command *command)
     {
-        InputCondition *condition = new KeyboardInputCondition(_keyboardState, state);
         _handlers.push_back(StateHandler(condition, command));
-        _conditions.push_back(condition);
     }
 
     void Clear()
     {
         _handlers.clear();
-
-        while (!_conditions.empty())
-        {
-            InputCondition *condition = _conditions.back();
-            _conditions.pop_back();
-            delete condition;
-        }
     }
 
 private:
-    Framework::ReadingKeyboardState *_keyboardState;
-    Framework::ReadingMouseState *_mouseState;
-    Framework::ReadingWindowState *_windowState;
-
     std::vector<StateHandler> _handlers;
-    std::vector<InputCondition*> _conditions;
 };
 
 class InputHandlerState
@@ -394,31 +327,53 @@ public:
 
 class TestInputHandlerState
 {
+private:
+    class ButtonPressCondition
+    {
+    public:
+        ButtonPressCondition(System::KeyCode key)
+            : _key(key)
+        {
+        }
+
+        bool Check()
+        {
+            return false;
+        }
+
+    private:
+        System::KeyCode _key;
+    };
+
 public:
-    TestInputHandlerState(InputHandler *handler, Moveable *moveable)
+    TestInputHandlerState(Framework::ReadingKeyboardState *keyboardState,
+                          ConditionHandler *handler, Moveable *moveable)
         : _handler(handler), _moveable(moveable),
           _moveUp(_moveable, 0.0f, 0.1f, 0.0f),
-          _moveDown(_moveable, 0.0f, -0.1f, 0.0f)
+          _moveDown(_moveable, 0.0f, -0.1f, 0.0f),
+          _upButtonDown(keyboardState, ButtonState(System::KeyCode::KeyUpArrow,
+                                                   Framework::KeyState::Pressed)),
+          _downButtonDown(keyboardState, ButtonState(System::KeyCode::KeyDownArrow,
+                                                     Framework::KeyState::Pressed))
     {
     }
 
     void Enter()
     {
         _handler->Clear();
-        _handler->SetHandler(ButtonState(System::KeyCode::KeyUpArrow,
-                                         Framework::KeyState::Pressed),
-                             &_moveUp);
-        _handler->SetHandler(ButtonState(System::KeyCode::KeyDownArrow,
-                                         Framework::KeyState::Pressed),
-                             &_moveDown);
+        _handler->SetHandler(&_upButtonDown, &_moveUp);
+        _handler->SetHandler(&_downButtonDown, &_moveDown);
     }
 
 private:
-    InputHandler *_handler;
+    ConditionHandler *_handler;
     Moveable *_moveable;
 
     MoveCommand _moveUp;
     MoveCommand _moveDown;
+
+    KeyboardInputCondition _upButtonDown;
+    KeyboardInputCondition _downButtonDown;
 };
 
 static Framework::ApplicationState applicationState = {
@@ -469,8 +424,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     Camera *camera = new Camera(adsRenderer);
     ticker.Start(17);
 
-    InputHandler inputHandler(keyboardState, mouseState, windowState);
-    TestInputHandlerState testHandlerState(&inputHandler, simpleObject);
+    ConditionHandler inputHandler;
+    TestInputHandlerState testHandlerState(keyboardState, &inputHandler, simpleObject);
     testHandlerState.Enter();
 
     std::vector<Entity*> entities;
