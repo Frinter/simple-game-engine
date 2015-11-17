@@ -19,9 +19,31 @@ public:
     {
         return _state;
     }
-
 private:
     System::KeyCode _key;
+    Framework::KeyState _state;
+};
+
+class MouseButtonState
+{
+public:
+    MouseButtonState(System::MouseButton button, Framework::KeyState state)
+        : _button(button), _state(state)
+    {
+    }
+
+    System::MouseButton GetButton() const
+    {
+        return _button;
+    }
+
+    Framework::KeyState GetState() const
+    {
+        return _state;
+    }
+
+private:
+    System::MouseButton _button;
     Framework::KeyState _state;
 };
 
@@ -30,6 +52,29 @@ class InputCondition
 public:
     virtual ~InputCondition() {}
     virtual bool Check() = 0;
+};
+
+class MultiConditionChecker : public InputCondition
+{
+public:
+    bool Check()
+    {
+        for (int i = 0; i < _conditions.size(); ++i)
+        {
+            if (_conditions[i]->Check() == false)
+                return false;
+        }
+
+        return true;
+    }
+
+    void AddCondition(InputCondition *condition)
+    {
+        _conditions.push_back(condition);
+    }
+
+private:
+    std::vector<InputCondition*> _conditions;
 };
 
 class KeyboardInputCondition : public InputCondition
@@ -49,4 +94,23 @@ public:
 private:
     Framework::ReadingKeyboardState *_keyboardState;
     ButtonState _buttonState;
+};
+
+class MouseInputCondition : public InputCondition
+{
+public:
+    MouseInputCondition(Framework::ReadingMouseState *mouseState,
+                        const MouseButtonState &buttonState)
+        : _mouseState(mouseState), _buttonState(buttonState)
+    {
+    }
+
+    bool Check()
+    {
+        return _mouseState->GetMouseButtonState(_buttonState.GetButton()) == _buttonState.GetState();
+    }
+
+private:
+    Framework::ReadingMouseState *_mouseState;
+    MouseButtonState _buttonState;
 };

@@ -20,6 +20,7 @@
 #include "imageloader.hh"
 #include "input.hh"
 #include "model.hh"
+#include "mousetracker.hh"
 #include "objimporter/objimporter.hh"
 #include "objimporter/objparser.hh"
 #include "utility/sleepservice.hh"
@@ -199,80 +200,6 @@ private:
     }
 };
 
-class MouseTracker
-{
-public:
-    MouseTracker(Framework::IWindowController *windowController)
-        : _windowController(windowController)
-    {
-        _mouseState = _windowController->GetMouseReader();
-        _previousMouseButtonState = Framework::KeyState::Unpressed;
-    }
-
-    void GetDeltaPosition(int *deltaX, int *deltaY)
-    {
-        *deltaX = _mouseDeltaX;
-        *deltaY = _mouseDeltaY;
-    }
-
-    void update(Camera *camera)
-    {
-        Framework::KeyState mouseButtonState = _mouseState->GetMouseButtonState(System::MouseButton::Button2);
-        unsigned int mouseX = _mouseState->GetMouseX();
-        unsigned int mouseY = _mouseState->GetMouseY();
-
-        int scrollDelta = _mouseState->GetScrollDelta();
-        if (scrollDelta != 0)
-            camera->Zoom(-0.1f * scrollDelta);
-
-        if (mouseButtonState == Framework::KeyState::Pressed)
-        {
-            if (_previousMouseButtonState == Framework::KeyState::Unpressed)
-            {
-                _mouseLockX = mouseX;
-                _mouseLockY = mouseY;
-            }
-
-            if (mouseX != _mouseLockX || mouseY != _mouseLockY)
-            {
-                _windowController->SetMousePosition(_mouseLockX, _mouseLockY);
-
-                _mouseDeltaX = mouseX - _mouseLockX;
-                _mouseDeltaY = mouseY - _mouseLockY;
-
-                mouseX = _mouseState->GetMouseX();
-                mouseY = _mouseState->GetMouseY();
-
-                camera->Rotate(((float)_mouseDeltaX / 10) * (PI / 180));
-            }
-            else
-            {
-                _mouseDeltaX = 0;
-                _mouseDeltaY = 0;
-            }
-        }
-        else
-        {
-            _mouseDeltaX = mouseX - _mousePreviousX;
-            _mouseDeltaY = mouseY - _mousePreviousY;
-
-            _mousePreviousX = mouseX;
-            _mousePreviousY = mouseY;
-        }
-
-        _previousMouseButtonState = mouseButtonState;
-    }
-
-private:
-    Framework::IWindowController *_windowController;
-    Framework::ReadingMouseState *_mouseState;
-
-    Framework::KeyState _previousMouseButtonState;
-    unsigned int _mouseLockX, _mouseLockY;
-    unsigned int _mousePreviousX, _mousePreviousY;
-    int _mouseDeltaX, _mouseDeltaY;
-};
-
 class ConditionHandler
 {
 public:
@@ -318,6 +245,27 @@ private:
     std::vector<StateHandler> _handlers;
 };
 
+class MouseMovementCondition : public InputCondition
+{
+public:
+    MouseMovementCondition(MouseTracker *tracker)
+        : _tracker(tracker)
+    {
+    }
+
+    bool Check()
+    {
+        int deltaX, deltaY;
+
+        _tracker->GetDeltaPosition(&deltaX, &deltaY);
+
+        return deltaX != 0 || deltaY != 0;
+    }
+
+private:
+    MouseTracker *_tracker;
+};
+
 class InputHandlerState
 {
 public:
@@ -325,37 +273,85 @@ public:
     virtual void Enter() = 0;
 };
 
+class RotateFromMouseMovementCommand : public Command
+{
+public:
+    RotateFromMouseMovementCommand(Moveable *moveable, MouseTracker *tracker)
+        : _moveable(moveable), _tracker(tracker)
+    {
+    }
+
+    void Execute()
+    {
+        int deltaX, deltaY;
+        _tracker->GetDeltaPosition(&deltaX, &deltaY);
+        _moveable->Rotate(((float)deltaX / 10) * (PI / 180));
+    }
+
+private:
+    Moveable *_moveable;
+    MouseTracker *_tracker;
+};
+
+class ZoomFromMouseCommand : public Command
+{
+public:
+    ZoomFromMouseCommand(Camera *camera, MouseTracker *tracker)
+        : _camera(camera), _tracker(tracker)
+    {
+    }
+
+    void Execute()
+    {
+        _camera->Zoom(-0.1f * _tracker->GetScrollDelta());
+    }
+
+private:
+    Camera *_camera;
+    MouseTracker *_tracker;
+};
+
+class MouseScrollCondition : public InputCondition
+{
+public:
+    MouseScrollCondition(MouseTracker *mouseTracker)
+        : _mouseTracker(mouseTracker)
+    {
+    }
+
+    bool Check()
+    {
+        return _mouseTracker->GetScrollDelta() != 0;
+    }
+
+private:
+    MouseTracker *_mouseTracker;
+};
+
 class TestInputHandlerState
 {
-private:
-    class ButtonPressCondition
-    {
-    public:
-        ButtonPressCondition(System::KeyCode key)
-            : _key(key)
-        {
-        }
-
-        bool Check()
-        {
-            return false;
-        }
-
-    private:
-        System::KeyCode _key;
-    };
-
 public:
     TestInputHandlerState(Framework::ReadingKeyboardState *keyboardState,
-                          ConditionHandler *handler, Moveable *moveable)
-        : _handler(handler), _moveable(moveable),
+                          Framework::ReadingMouseState *mouseState,
+                          MouseTracker *mouseTracker,
+                          ConditionHandler *handler, Moveable *moveable,
+                          Camera *camera)
+        : _handler(handler), _moveable(moveable), _camera(camera),
           _moveUp(_moveable, 0.0f, 0.1f, 0.0f),
           _moveDown(_moveable, 0.0f, -0.1f, 0.0f),
+          _rotateFromMouse(_camera, mouseTracker),
+          _zoomFromMouse(camera, mouseTracker),
           _upButtonDown(keyboardState, ButtonState(System::KeyCode::KeyUpArrow,
                                                    Framework::KeyState::Pressed)),
           _downButtonDown(keyboardState, ButtonState(System::KeyCode::KeyDownArrow,
-                                                     Framework::KeyState::Pressed))
+                                                     Framework::KeyState::Pressed)),
+          _mouseButtonDown(mouseState, MouseButtonState(System::MouseButton::Button2,
+                                                        Framework::KeyState::Pressed)),
+          _mouseMovement(mouseTracker),
+          _mouseScroll(mouseTracker)
     {
+        _rotateCameraCondition.AddCondition(&_mouseButtonDown);
+        _rotateCameraCondition.AddCondition(&_mouseMovement);
     }
 
     void Enter()
@@ -363,17 +359,27 @@ public:
         _handler->Clear();
         _handler->SetHandler(&_upButtonDown, &_moveUp);
         _handler->SetHandler(&_downButtonDown, &_moveDown);
+        _handler->SetHandler(&_rotateCameraCondition, &_rotateFromMouse);
+        _handler->SetHandler(&_mouseScroll, &_zoomFromMouse);
     }
 
 private:
     ConditionHandler *_handler;
     Moveable *_moveable;
+    Camera *_camera;
 
     MoveCommand _moveUp;
     MoveCommand _moveDown;
+    RotateFromMouseMovementCommand _rotateFromMouse;
+    ZoomFromMouseCommand _zoomFromMouse;
 
     KeyboardInputCondition _upButtonDown;
     KeyboardInputCondition _downButtonDown;
+    MouseInputCondition _mouseButtonDown;
+    MouseMovementCondition _mouseMovement;
+    MouseScrollCondition _mouseScroll;
+
+    MultiConditionChecker _rotateCameraCondition;
 };
 
 static Framework::ApplicationState applicationState = {
@@ -425,7 +431,10 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     ticker.Start(17);
 
     ConditionHandler inputHandler;
-    TestInputHandlerState testHandlerState(keyboardState, &inputHandler, simpleObject);
+    TestInputHandlerState testHandlerState(keyboardState, mouseState,
+                                           mouseTracker,
+                                           &inputHandler, simpleObject,
+                                           camera);
     testHandlerState.Enter();
 
     std::vector<Entity*> entities;
@@ -474,8 +483,8 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
         }
 
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        mouseTracker->update();
         inputHandler.Update();
-        mouseTracker->update(camera);
         for (int i = 0; i < entities.size(); ++i)
         {
             entities[i]->update();
