@@ -298,16 +298,42 @@ private:
 class InputHandler
 {
 private:
+    class InputCondition
+    {
+    public:
+        virtual ~InputCondition() {}
+        virtual bool Check() = 0;
+    };
+
     class StateHandler
     {
     public:
-        StateHandler(const ButtonState &_state, Command *_command)
-            : state(_state), command(_command)
+        StateHandler(InputCondition *_condition, Command *_command)
+            : condition(_condition), command(_command)
         {
         }
 
-        ButtonState state;
+        InputCondition *condition;
         Command *command;
+    };
+
+    class KeyboardInputCondition : public InputCondition
+    {
+    public:
+        KeyboardInputCondition(Framework::ReadingKeyboardState *keyboardState,
+                               const ButtonState &buttonState)
+            : _keyboardState(keyboardState), _buttonState(buttonState)
+        {
+        }
+
+        bool Check()
+        {
+            return _keyboardState->GetKeyState(_buttonState.GetKey()) == _buttonState.GetState();
+        }
+
+    private:
+        Framework::ReadingKeyboardState *_keyboardState;
+        ButtonState _buttonState;
     };
 
 public:
@@ -326,19 +352,28 @@ public:
         {
             StateHandler handler = _handlers[i];
 
-            if (_keyboardState->GetKeyState(handler.state.GetKey()) == handler.state.GetState())
+            if (handler.condition->Check())
                 handler.command->Execute();
         }
     }
 
     void SetHandler(const ButtonState &state, Command *command)
     {
-        _handlers.push_back(StateHandler(state, command));
+        InputCondition *condition = new KeyboardInputCondition(_keyboardState, state);
+        _handlers.push_back(StateHandler(condition, command));
+        _conditions.push_back(condition);
     }
 
     void Clear()
     {
         _handlers.clear();
+
+        while (!_conditions.empty())
+        {
+            InputCondition *condition = _conditions.back();
+            _conditions.pop_back();
+            delete condition;
+        }
     }
 
 private:
@@ -347,6 +382,7 @@ private:
     Framework::ReadingWindowState *_windowState;
 
     std::vector<StateHandler> _handlers;
+    std::vector<InputCondition*> _conditions;
 };
 
 class InputHandlerState
