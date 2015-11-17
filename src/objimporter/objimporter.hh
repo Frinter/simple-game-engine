@@ -6,7 +6,7 @@
 
 #include "GL/gl_core_3_3.h"
 
-#include "irenderer.hh"
+#include "rendering/irenderer.hh"
 #include "objparser.hh"
 #include "types.hh"
 

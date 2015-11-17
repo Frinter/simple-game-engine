@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-#include "irenderer.hh"
+#include "rendering/irenderer.hh"
 #include "types.hh"
 
 enum class Direction
@@ -25,7 +25,7 @@ public:
 
     void Render(IndexValue tileX, IndexValue tileY,
                 const glm::vec4 &location, Direction direction);
-    
+
 private:
     IRenderer *_renderer;
     IndexValue _materialId;

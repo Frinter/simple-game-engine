@@ -15,7 +15,6 @@
 #include <framework/platform.hh>
 #include <GL/gl_core_3_3.h>
 
-#include "adsrenderer.hh"
 #include "condition.hh"
 #include "conditionhandler.hh"
 #include "command.hh"
@@ -26,6 +25,7 @@
 #include "mousetracker.hh"
 #include "objimporter/objimporter.hh"
 #include "objimporter/objparser.hh"
+#include "rendering/adsrenderer.hh"
 #include "utility/sleepservice.hh"
 #include "utility/systemtimer.hh"
 #include "utility/ticker.hh"
@@ -220,7 +220,7 @@ private:
 class InputHandlerState
 {
 public:
-    virtual ~InputHandlerState();
+    virtual ~InputHandlerState() {}
     virtual void Enter() = 0;
 };
 
@@ -279,7 +279,7 @@ private:
     MouseTracker *_mouseTracker;
 };
 
-class TestInputHandlerState
+class TestInputHandlerState : public InputHandlerState
 {
 public:
     TestInputHandlerState(Framework::ReadingKeyboardState *keyboardState,
