@@ -179,8 +179,6 @@ public:
         _shaderProgram->Use();
     }
 
-    Model *CreateModelFromImporter(IRenderer::Importer &importer);
-    
     IndexValue RegisterMaterial(MaterialInfo material)
     {
         IndexValue index = _materials.size();
@@ -237,45 +235,11 @@ public:
         _shaderProgram->SetUniform("Light.Ls", glm::value_ptr(_light.Ls));
     }
 
-    void UseMaterial(IndexValue index)
-    {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, _materials[index].Kd_mapId);
-
-        _shaderProgram->SetUniform("Material.Ka", glm::value_ptr(_materials[index].Ka));
-        _shaderProgram->SetUniform("Material.Kd", glm::value_ptr(_materials[index].Kd));
-        _shaderProgram->SetUniform("Material.Ks", glm::value_ptr(_materials[index].Ks));
-        _shaderProgram->SetUniform("Material.Shininess", &_materials[index].shininess);
-        _shaderProgram->SetUniform("Material.Kd_map", 0);
-        _shaderProgram->SetUniform("Material.hasKdMap", (int)_materials[index].hasKdMap);
-    }
-
-    void Render(const Model *model)
-    {
-        glBindVertexArray(_vaoHandle);
-
-        glUniformMatrix4fv(_modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(_modelViewMatrix));
-        glUniformMatrix3fv(_normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(_normalMatrix));
-        glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, glm::value_ptr(_projectionMatrix));
-        glUniformMatrix4fv(_MVPMatrixLocation, 1, GL_FALSE, glm::value_ptr(_MVPMatrix));
-
-        const std::vector<Model::RenderUnit> renderUnits = model->GetRenderUnits();
-
-        for (int i = 0; i < renderUnits.size(); ++i)
-        {
-            Model::RenderUnit renderUnit = renderUnits[i];
-
-            _indexBuffer.UseDataCollection(renderUnit.GetVertexIndicesId());
-            _positionBuffer.UseDataCollection(renderUnit.GetVertexPositionsId());
-            _normalBuffer.UseDataCollection(renderUnit.GetVertexNormalsId());
-            _uvBuffer.UseDataCollection(renderUnit.GetUVCoordsId());
-            UseMaterial(renderUnit.GetMaterialId());
-
-            glDrawArrays(GL_TRIANGLES, 0, _indexBuffer.currentSize());
-        }
-    }
-
-    void Render(vector<IndexValue> indices, vector<float> vertices, vector<float> normals, vector<float> UVs)
+    void Render(const vector<IndexValue> &indices,
+                const vector<float> &vertices,
+                const vector<float> &normals,
+                const std::vector<float> &UVs,
+                const IndexValue &materialId)
     {
         glBindVertexArray(_vaoHandle);
 
@@ -288,13 +252,14 @@ public:
         _positionBuffer.UseDataCollection(vertices);
         _normalBuffer.UseDataCollection(normals);
         _uvBuffer.UseDataCollection(UVs);
+        useMaterial(materialId);
 
         glDrawArrays(GL_TRIANGLES, 0, indices.size());
     }
 
 private:
     LightInfo _light;
-    
+
     VertexArrayBuffer<IndexValue> _indexBuffer;
     VertexArrayBuffer<float> _positionBuffer;
     VertexArrayBuffer<float> _normalBuffer;
@@ -323,7 +288,7 @@ private:
     IndexValue _imageUVIndex;
     IndexValue _imageIndexIndex;
     IndexValue _imageMaterialIndex;
-    
+
 private:
     GLuint registerTexture(RawImageInfo *imageInfo)
     {
@@ -338,29 +303,25 @@ private:
 
         return textureId;
     }
-};
 
-Model *ADSRendererImplementation::CreateModelFromImporter(IRenderer::Importer &importer)
-{
-    vector<Model::RenderUnit> renderUnits;
-    vector<RenderObject> renderObjects = importer.GetRenderObjects();
-
-    for (int i = 0; i < renderObjects.size(); ++i)
+    void useMaterial(IndexValue index)
     {
-        RenderObject object = renderObjects[i];
-
-        IndexValue vertexCollectionId = _positionBuffer.RegisterDataCollection(object._vertices);
-        IndexValue normalCollectionId = _normalBuffer.RegisterDataCollection(object._normals);
-        IndexValue uvCollectionId = _uvBuffer.RegisterDataCollection(object._uvCoords);
-        IndexValue vertexIndicesId = _indexBuffer.RegisterDataCollection(object._indices);
-        IndexValue materialId = RegisterMaterial(importer.GetMaterial(object._materialName));
-
-        renderUnits.push_back(Model::RenderUnit(vertexCollectionId, normalCollectionId,
-                                                vertexIndicesId, materialId, uvCollectionId));
+        useMaterial(_materials[index]);
     }
 
-    return new Model(renderUnits);
-}
+    void useMaterial(const MaterialInfo &info)
+    {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, info.Kd_mapId);
+
+        _shaderProgram->SetUniform("Material.Ka", glm::value_ptr(info.Ka));
+        _shaderProgram->SetUniform("Material.Kd", glm::value_ptr(info.Kd));
+        _shaderProgram->SetUniform("Material.Ks", glm::value_ptr(info.Ks));
+        _shaderProgram->SetUniform("Material.Shininess", &info.shininess);
+        _shaderProgram->SetUniform("Material.Kd_map", 0);
+        _shaderProgram->SetUniform("Material.hasKdMap", (int)info.hasKdMap);
+    }
+};
 
 ADSRenderer::ADSRenderer()
 {
@@ -371,15 +332,10 @@ ADSRenderer::~ADSRenderer()
 {
     delete _implementation;
 }
-    
+
 void ADSRenderer::Use()
 {
     _implementation->Use();
-}
-
-Model *ADSRenderer::CreateModelFromImporter(IRenderer::Importer &importer)
-{
-    return _implementation->CreateModelFromImporter(importer);
 }
 
 IndexValue ADSRenderer::RegisterMaterial(MaterialInfo material)
@@ -394,7 +350,7 @@ void ADSRenderer::SetModelMatrix(const glm::mat4 &matrix)
 
 void ADSRenderer::SetViewMatrix(const glm::mat4 &matrix)
 {
-    _implementation->SetViewMatrix(matrix);    
+    _implementation->SetViewMatrix(matrix);
 }
 
 void ADSRenderer::SetProjectionMatrix(const glm::mat4 &matrix)
@@ -407,17 +363,11 @@ void ADSRenderer::SetLight(LightInfo info)
     _implementation->SetLight(info);
 }
 
-void ADSRenderer::UseMaterial(IndexValue index)
+void ADSRenderer::Render(const std::vector<IndexValue> &indices,
+                         const std::vector<float> &vertices,
+                         const std::vector<float> &normals,
+                         const std::vector<float> &UVs,
+                         const IndexValue &materialId)
 {
-    _implementation->UseMaterial(index);
-}
-
-void ADSRenderer::Render(const Model *model)
-{
-    _implementation->Render(model);
-}
-
-void ADSRenderer::Render(vector<IndexValue> indices, vector<float> vertices, vector<float> normals, vector<float> UVs)
-{
-    _implementation->Render(indices, vertices, normals, UVs);
+    _implementation->Render(indices, vertices, normals, UVs, materialId);
 }

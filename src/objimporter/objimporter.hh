@@ -10,7 +10,7 @@
 #include "objparser.hh"
 #include "types.hh"
 
-class ObjImporter : public IRenderer::Importer
+class ObjImporter
 {
 public:
     ObjImporter(ObjParser::IParseResult *result)

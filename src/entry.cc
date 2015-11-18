@@ -42,6 +42,13 @@ const float TAU = 2 * PI;
 
 class SimpleObjectGraphicsComponent
 {
+private:
+    typedef struct ExtendedRenderObject
+    {
+        RenderObject object;
+        IndexValue materialId;
+    } ExtendedRenderObject;
+
 public:
     SimpleObjectGraphicsComponent(IRenderer *renderer)
         : _renderer(renderer)
@@ -49,18 +56,36 @@ public:
         ObjParser::ObjFileParser parser("assets/", "textured-things.obj");
         ObjParser::IParseResult *parseResult = parser.Parse();
         ObjImporter importer(parseResult);
-        _model = renderer->CreateModelFromImporter(importer);
+        std::vector<RenderObject> renderObjects = importer.GetRenderObjects();
+        for (int i = 0; i < renderObjects.size(); ++i)
+        {
+            RenderObject *renderObject = &renderObjects[i];
+            ExtendedRenderObject object;
+            object.object = *renderObject;
+            object.materialId = _renderer->RegisterMaterial(importer.GetMaterial(renderObject->_materialName));
+            _renderObjects.push_back(object);
+        }
     }
 
     void update(const glm::vec3 &position)
     {
         _renderer->SetModelMatrix(glm::translate(glm::mat4(1.0), position));
-        _renderer->Render(_model);
+        for (int i = 0; i < _renderObjects.size(); ++i)
+        {
+            ExtendedRenderObject *object = &_renderObjects[i];
+
+            _renderer->Render(object->object._indices,
+                              object->object._vertices,
+                              object->object._normals,
+                              object->object._uvCoords,
+                              object->materialId);
+        }
     }
 
 private:
     IRenderer *_renderer;
-    Model *_model;
+    ObjImporter *_importer;
+    std::vector<ExtendedRenderObject> _renderObjects;
 };
 
 class Moveable

@@ -139,8 +139,7 @@ void TileRenderer::Render(IndexValue tileX, IndexValue tileY,
         break;
     }
 
-    _renderer->UseMaterial(_materialId);
-    _renderer->Render(indices, vertices, normals, UVs);
+    _renderer->Render(indices, vertices, normals, UVs, _materialId);
 }
 
 void TileRenderer::addToVector(std::vector<float> &list, const glm::vec4 &vec)
