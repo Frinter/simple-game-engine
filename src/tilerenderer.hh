@@ -31,7 +31,8 @@ private:
     IndexValue _materialId;
     unsigned int _tileWidth;
     unsigned int _tileHeight;
-    RawImageInfo *_tilemapImage;
+    unsigned int _tilemapWidth;
+    unsigned int _tilemapHeight;
 
 private:
     void addToVector(std::vector<float> &list, const glm::vec4 &vec);

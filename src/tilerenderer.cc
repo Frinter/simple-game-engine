@@ -1,7 +1,9 @@
 #include "tilerenderer.hh"
 
 TileRenderer::TileRenderer(IRenderer *renderer, RawImageInfo *tilemapImage, float tileWidth, float tileHeight)
-    : _renderer(renderer), _tilemapImage(tilemapImage), _tileWidth(tileWidth), _tileHeight(tileHeight)
+    : _renderer(renderer), _tilemapWidth(tilemapImage->width),
+      _tilemapHeight(tilemapImage->height), _tileWidth(tileWidth),
+      _tileHeight(tileHeight)
 {
     MaterialInfo tilemapMaterialInfo;
     tilemapMaterialInfo.Ka = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -168,10 +170,10 @@ std::vector<float> TileRenderer::GetUVsForTile(IndexValue x, IndexValue y)
     right = (x + 1) * _tileWidth;
 
     float UVtop, UVbottom, UVleft, UVright;
-    UVleft = 0.995 * (float) left / _tilemapImage->width + 0.002f;
-    UVright = 0.995 * (float) right / _tilemapImage->width + 0.002f;
-    UVtop = 0.995 * (float) top / _tilemapImage->height + 0.002f;
-    UVbottom = 0.995 * (float) bottom / _tilemapImage->height + 0.002f;
+    UVleft = 0.995 * (float) left / _tilemapWidth + 0.002f;
+    UVright = 0.995 * (float) right / _tilemapWidth + 0.002f;
+    UVtop = 0.995 * (float) top / _tilemapHeight + 0.002f;
+    UVbottom = 0.995 * (float) bottom / _tilemapHeight + 0.002f;
 
     UVs.push_back(UVleft);
     UVs.push_back(UVtop);
