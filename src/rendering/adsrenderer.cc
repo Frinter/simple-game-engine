@@ -17,28 +17,6 @@ using std::endl;
 using std::string;
 using std::vector;
 
-const float imageVertices[] = {
-    1.0f, 1.0f, 0.0f, 1.0f,
-    0.0f, 1.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 0.0f, 1.0f,
-    1.0f, 1.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 0.0f, 1.0f,
-    1.0f, 0.0f, 0.0f, 1.0f
-};
-
-const float imageNormals[] = {
-    0.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 1.0f,
-    0.0f, 0.0f, 1.0f
-};
-
-const IndexValue imageIndices[] = {
-    0, 1, 2, 3, 4, 5
-};
-
 template <class T>
 class VertexArrayBuffer
 {
@@ -47,7 +25,6 @@ public:
         : _targetType(targetType)
     {
         glGenBuffers(1, &_bufferHandle);
-        _bindData = &VertexArrayBuffer::initialBindData;
     }
 
     ~VertexArrayBuffer()
@@ -66,34 +43,9 @@ public:
         glBindBuffer(_targetType, _bufferHandle);
     }
 
-    IndexValue RegisterDataCollection(const T *collectionData, int count)
-    {
-        IndexValue newIndex = _vertexDataCollections.size();
-        vector<T> data(collectionData, collectionData + count);
-        _vertexDataCollections.push_back(data);
-        return newIndex;
-    }
-
-    IndexValue RegisterDataCollection(vector<T> vertexData)
-    {
-        IndexValue newIndex = _vertexDataCollections.size();
-        _vertexDataCollections.push_back(vertexData);
-        return newIndex;
-    }
-
     void UseDataCollection(const vector<T> &vertexData)
     {
         bindUnindexedData(vertexData);
-    }
-
-    unsigned int currentSize() const
-    {
-        return _vertexDataCollections[_currentIndex].size();
-    }
-
-    void UseDataCollection(IndexValue collectionIndex)
-    {
-        (this->*_bindData)(collectionIndex);
     }
 
 private:
@@ -106,31 +58,10 @@ private:
     vector< vector<T> > _vertexDataCollections;
 
 private:
-    void initialBindData(IndexValue index)
-    {
-        _bindData = &VertexArrayBuffer::bindData;
-        unconditionalBindData(index);
-    }
-
-    void bindData(IndexValue index)
-    {
-        if (index != _currentIndex)
-            unconditionalBindData(index);
-    }
-
     void bindUnindexedData(const vector<T> &vertexData)
     {
-        _bindData = &VertexArrayBuffer::initialBindData;
         Bind();
         glBufferData(_targetType, vertexData.size() * sizeof(T), vertexData.data(), GL_STATIC_DRAW);
-    }
-
-    void unconditionalBindData(IndexValue index)
-    {
-        _currentIndex = index;
-        Bind();
-        vector<T> *vertexData = &_vertexDataCollections[index];
-        glBufferData(_targetType, vertexData->size() * sizeof(T), vertexData->data(), GL_STATIC_DRAW);
     }
 };
 
@@ -168,10 +99,6 @@ public:
         _normalMatrixLocation = _shaderProgram->GetUniformLocation("NormalMatrix");
         _projectionMatrixLocation = _shaderProgram->GetUniformLocation("ProjectionMatrix");
         _MVPMatrixLocation = _shaderProgram->GetUniformLocation("MVP");
-
-        _imageVertexIndex = _positionBuffer.RegisterDataCollection(imageVertices, 24);
-        _imageNormalIndex = _normalBuffer.RegisterDataCollection(imageNormals, 18);
-        _imageIndexIndex = _indexBuffer.RegisterDataCollection(imageIndices, 6);
     }
 
     void Use()
@@ -282,12 +209,6 @@ private:
     glm::mat4 _MVPMatrix;
 
     glm::mat3 _normalMatrix;
-
-    IndexValue _imageVertexIndex;
-    IndexValue _imageNormalIndex;
-    IndexValue _imageUVIndex;
-    IndexValue _imageIndexIndex;
-    IndexValue _imageMaterialIndex;
 
 private:
     GLuint registerTexture(RawImageInfo *imageInfo)
