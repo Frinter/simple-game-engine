@@ -16,8 +16,9 @@ TEST_OBJ := $(patsubst tests/%.cc,test-build/%.o,$(TEST_SRC))
 .PHONY: clean test release debug tests-run
 .DEFAULT_GOAL := debug
 
-debug: bin/debug-build.exe
-release: bin/rendering-engine.exe
+debug: test bin/debug-build.exe
+release: test bin/rendering-engine.exe
+
 test: tests-run
 	@rm bin/tests.exe
 
