@@ -31,6 +31,9 @@ bin/debug-build.exe: $(OBJ)
 bin/rendering-engine.exe: $(OBJ)
 	clang++ -o $@ $(INCLUDE) -std=c++11 $^ $(LIBS) -Wl,-subsystem,windows
 
+bin/tests.exe: $(TEST_OBJ) $(filter-out $(MAIN_OBJ) build/imageloader.o build/objimporter/objimporter.o,$(OBJ))
+	clang++ -o $@ $(INCLUDE) -std=c++11 $^ lib/lodepng.cpp -Llib -lmingw32 lib/platform.MINGW.64.a -ljpeg -lopengl32 -lgdi32 -lwinmm
+
 $(OBJ_DIRS) $(TEST_OBJ_DIRS):
 	@mkdir -p $@
 
@@ -45,9 +48,6 @@ test-build/%.d: tests/%.cc | $(TEST_OBJ_DIRS)
 
 test-build/%.o: tests/%.cc test-build/%.d | $(TEST_OBJ_DIRS)
 	clang++ -c -o $@ -std=c++11 $(INCLUDE) -Isrc $<
-
-bin/tests.exe: $(TEST_OBJ) $(filter-out $(MAIN_OBJ),$(OBJ))
-	clang++ -o $@ $(INCLUDE) -std=c++11 $^
 
 clean:
 	rm -R build
