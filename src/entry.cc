@@ -165,12 +165,13 @@ ApplicationThreadEntry_FunctionSignature(ApplicationThreadEntry)
     voxelRepository.AddVoxelType(VoxelType(1, 0));
     voxelRepository.AddVoxelType(VoxelType(1, 1));
 
-    MouseTracker *mouseTracker = new MouseTracker(windowController);
+    MouseTracker *mouseTracker = new MouseTracker(mouseState);
     Camera *camera = new Camera(adsRenderer);
     ticker.Start(17);
 
     ConditionHandler inputHandler;
-    TestInputHandlerState testHandlerState(keyboardState, mouseState,
+    TestInputHandlerState testHandlerState(windowController,
+                                           keyboardState, mouseState,
                                            mouseTracker,
                                            &inputHandler, simpleObject,
                                            camera);

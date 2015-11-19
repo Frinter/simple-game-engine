@@ -1,13 +1,27 @@
 #pragma once
 
+#include <map>
+
+#include <framework/platform.hh>
+
 class MouseTracker
 {
+private:
 public:
-    MouseTracker(Framework::IWindowController *windowController)
-        : _windowController(windowController), _scrollDelta(0)
+    MouseTracker(Framework::ReadingMouseState *mouseReader)
+        : _mouseState(mouseReader), _scrollDelta(0)
     {
-        _mouseState = _windowController->GetMouseReader();
-        _previousMouseButtonState = Framework::KeyState::Unpressed;
+        _mouseCurrentX = _mouseState->GetMouseX();
+        _mouseCurrentY = _mouseState->GetMouseY();
+
+        _previousButtonState[System::MouseButton::Button2] = Framework::KeyState::Unpressed;
+        _currentButtonState[System::MouseButton::Button2] = Framework::KeyState::Unpressed;
+    }
+
+    void GetPosition(int *mouseX, int *mouseY)
+    {
+        *mouseX = _mouseCurrentX;
+        *mouseY = _mouseCurrentY;
     }
 
     void GetDeltaPosition(int *deltaX, int *deltaY)
@@ -21,57 +35,48 @@ public:
         return _scrollDelta;
     }
 
+    bool IsButtonDownFrame(System::MouseButton button) const
+    {
+        return _previousButtonState.at(button) == Framework::KeyState::Unpressed &&
+            _currentButtonState.at(button) == Framework::KeyState::Pressed;
+    }
+
+    bool IsButtonUpFrame(System::MouseButton button) const
+    {
+        return _previousButtonState.at(button) == Framework::KeyState::Pressed &&
+            _currentButtonState.at(button) == Framework::KeyState::Unpressed;
+    }
+
+    void ResetPreviousPosition()
+    {
+        _mousePreviousX = _mouseCurrentX;
+        _mousePreviousY = _mouseCurrentY;
+
+        _mouseCurrentX = _mouseState->GetMouseX();
+        _mouseCurrentY = _mouseState->GetMouseY();
+    }
+
     void update()
     {
-        Framework::KeyState mouseButtonState = _mouseState->GetMouseButtonState(System::MouseButton::Button2);
-        unsigned int mouseX = _mouseState->GetMouseX();
-        unsigned int mouseY = _mouseState->GetMouseY();
+        ResetPreviousPosition();
+
+        _previousButtonState[System::MouseButton::Button2] = _currentButtonState[System::MouseButton::Button2];
+        _currentButtonState[System::MouseButton::Button2] = _mouseState->GetMouseButtonState(System::MouseButton::Button2);
 
         _scrollDelta = _mouseState->GetScrollDelta();
 
-        if (mouseButtonState == Framework::KeyState::Pressed)
-        {
-            if (_previousMouseButtonState == Framework::KeyState::Unpressed)
-            {
-                _mouseLockX = mouseX;
-                _mouseLockY = mouseY;
-            }
-
-            if (mouseX != _mouseLockX || mouseY != _mouseLockY)
-            {
-                _windowController->SetMousePosition(_mouseLockX, _mouseLockY);
-
-                _mouseDeltaX = mouseX - _mouseLockX;
-                _mouseDeltaY = mouseY - _mouseLockY;
-
-                mouseX = _mouseState->GetMouseX();
-                mouseY = _mouseState->GetMouseY();
-            }
-            else
-            {
-                _mouseDeltaX = 0;
-                _mouseDeltaY = 0;
-            }
-        }
-        else
-        {
-            _mouseDeltaX = mouseX - _mousePreviousX;
-            _mouseDeltaY = mouseY - _mousePreviousY;
-
-            _mousePreviousX = mouseX;
-            _mousePreviousY = mouseY;
-        }
-
-        _previousMouseButtonState = mouseButtonState;
+        _mouseDeltaX = _mouseCurrentX - _mousePreviousX;
+        _mouseDeltaY = _mouseCurrentY - _mousePreviousY;
     }
 
 private:
-    Framework::IWindowController *_windowController;
     Framework::ReadingMouseState *_mouseState;
 
-    Framework::KeyState _previousMouseButtonState;
-    unsigned int _mouseLockX, _mouseLockY;
     unsigned int _mousePreviousX, _mousePreviousY;
+    unsigned int _mouseCurrentX, _mouseCurrentY;
     int _mouseDeltaX, _mouseDeltaY;
     int _scrollDelta;
+
+    std::map<System::MouseButton, Framework::KeyState> _currentButtonState;
+    std::map<System::MouseButton, Framework::KeyState> _previousButtonState;
 };
